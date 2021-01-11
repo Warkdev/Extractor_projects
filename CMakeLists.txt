@@ -17,155 +17,91 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
+cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
+
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+
+cmake_policy(SET CMP0028 NEW)
+cmake_policy(SET CMP0054 NEW)
+cmake_policy(SET CMP0042 NEW)
+cmake_policy(SET CMP0048 NEW)
+cmake_policy(SET CMP0063 NEW)
+
+set(CMAKE_CXX_STANDARD          11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS        OFF)
+
+set_property(GLOBAL
+    PROPERTY USE_FOLDERS ON
+)
+
+#==================================================================================
+# Define available cmake options below
+option(DEBUG                "Enable debug build (only on non IDEs)"         OFF)
+#==================================================================================
+message("")
+message(
+  "This script builds the MaNGOS extractor.
+  Options that can be used in order to configure the process:
+   General:
+    CMAKE_INSTALL_PREFIX    Path where the server should be installed to
+    DEBUG                   Debug build, only for systems without IDE (Linux, *BSD)
+  To set an option simply type -D<OPTION>=<VALUE> after 'cmake <srcs>'.
+  Also, you can specify the generator with -G. See 'cmake --help' for more details
+  For example: cmake .. -DCMAKE_INSTALL_PREFIX=/opt/mangos"
+)
+message("")
+
+project(MaNGOS_Extractors VERSION 0.22.0)
+
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+  set(CMAKE_INSTALL_PREFIX ${CMAKE_BINARY_DIR}/install CACHE PATH "Default install directory" FORCE)
+endif()
+
+if(DEBUG)
+  set(CMAKE_BUILD_TYPE Debug)
+else()
+  set(CMAKE_BUILD_TYPE Release)
+endif()
+
+if(UNIX)
+    set(BIN_DIR ${CMAKE_INSTALL_PREFIX}/bin)
+    if (NOT CONF_INSTALL_DIR)
+        set(CONF_INSTALL_DIR ../etc)
+    endif()
+else()
+    set(BIN_DIR ${CMAKE_INSTALL_PREFIX})
+    if (NOT CONF_INSTALL_DIR)
+        set(CONF_INSTALL_DIR .)
+    endif()
+endif()
+
 # Used for install targets
+find_package(Poco REQUIRED Foundation)
 set(TOOLS_DIR "tools")
 set(EXTRACTOR_BINARIES_DIR "${CMAKE_SOURCE_DIR}/src/tools/Extractor_Binaries")
 
-set(SHARED_SRCS
-    shared/dbcfile.cpp
-    shared/ExtractorCommon.cpp
-    shared/dbcfile.h
-    shared/ExtractorCommon.h
-)
-
 #=======================================================#
-#map-extractor
+#extractor
 #=======================================================#
-add_executable(map-extractor
-    map-extractor/System.cpp
-    ${SHARED_SRCS}
+add_executable(extractor
+    src/Logger.cpp
     $<$<BOOL:${WIN32}>:map-extractor/map-extractor.rc>
 )
 
-target_include_directories(map-extractor
+target_link_libraries(extractor
     PUBLIC
-        shared
-        map-extractor
-)
-
-target_link_libraries(map-extractor
-    PUBLIC
-    loadlib
+    Poco::Foundation
 )
 
 install(
-    TARGETS map-extractor
+    TARGETS extractor
     DESTINATION "${BIN_DIR}/${TOOLS_DIR}"
 )
 
 if(WIN32 AND MSVC)
     install(
-        FILES $<TARGET_PDB_FILE:map-extractor>
+        FILES $<TARGET_PDB_FILE:extractor>
         DESTINATION ${BIN_DIR}/${TOOLS_DIR}
         OPTIONAL)
-endif()
-
-#=======================================================#
-#vmap-extractor
-#=======================================================#
-add_executable(vmap-extractor
-    vmap-extractor/adtfile.cpp
-    vmap-extractor/adtfile.h
-    vmap-extractor/assembler.cpp
-    vmap-extractor/model.cpp
-    vmap-extractor/model.h
-    vmap-extractor/modelheaders.h
-    vmap-extractor/vec3d.h
-    vmap-extractor/vmapexport.cpp
-    vmap-extractor/vmapexport.h
-    vmap-extractor/wdtfile.cpp
-    vmap-extractor/wdtfile.h
-    vmap-extractor/wmo.cpp
-    vmap-extractor/wmo.h
-    ${SHARED_SRCS}
-    $<$<BOOL:${WIN32}>:vmap-extractor/vmap-extractor.rc>
-)
-
-target_include_directories(vmap-extractor
-    PUBLIC
-        shared
-        vmap-extractor
-)
-
-target_link_libraries(vmap-extractor
-    PUBLIC
-        loadlib
-        vmap2
-)
-
-install(
-    TARGETS vmap-extractor
-    DESTINATION ${BIN_DIR}/${TOOLS_DIR}
-)
-
-if(WIN32 AND MSVC)
-    install(
-        FILES $<TARGET_PDB_FILE:vmap-extractor>
-        DESTINATION ${BIN_DIR}/${TOOLS_DIR}
-        OPTIONAL
-)
-endif()
-
-#=======================================================#
-#mmap-extractor
-#=======================================================#
-add_executable(mmap-extractor
-    Movemap-Generator/generator.cpp
-    Movemap-Generator/IntermediateValues.cpp
-    Movemap-Generator/IntermediateValues.h
-    Movemap-Generator/MangosMap.h
-    Movemap-Generator/MapBuilder.cpp
-    Movemap-Generator/MapBuilder.h
-    Movemap-Generator/MMapCommon.h
-    Movemap-Generator/TerrainBuilder.cpp
-    Movemap-Generator/TerrainBuilder.h
-    Movemap-Generator/TileMsgBlock.h
-    Movemap-Generator/TileThreadPool.cpp
-    Movemap-Generator/TileThreadPool.h
-    Movemap-Generator/VMapExtensions.cpp
-    shared/ExtractorCommon.cpp
-    shared/ExtractorCommon.h
-    $<$<BOOL:${WIN32}>:Movemap-Generator/Movemap-Generator.rc>
-)
-
-target_include_directories(mmap-extractor
-    PUBLIC
-        shared
-        Movemap-Generator
-)
-
-target_link_libraries(mmap-extractor
-    PUBLIC
-        vmap2
-        shared
-        RecastNavigation::Recast
-        Threads::Threads
-        DL::DL
-)
-
-install(
-    TARGETS mmap-extractor
-    DESTINATION ${BIN_DIR}/${TOOLS_DIR}
-)
-
-install (
-	FILES "${EXTRACTOR_BINARIES_DIR}/MoveMapGen.sh"        
-         DESTINATION ${BIN_DIR}/${TOOLS_DIR}
-)
-install (
-	FILES "${EXTRACTOR_BINARIES_DIR}/offmesh.txt"        
-         DESTINATION ${BIN_DIR}/${TOOLS_DIR}
-)
-
-install (
-	FILES "${EXTRACTOR_BINARIES_DIR}/mmap_excluded.txt"        
-         DESTINATION ${BIN_DIR}/${TOOLS_DIR}
-)
-
-if(WIN32 AND MSVC)
-    install(
-        FILES $<TARGET_PDB_FILE:mmap-extractor>
-        DESTINATION ${BIN_DIR}/${TOOLS_DIR}
-        OPTIONAL
-)
 endif()
