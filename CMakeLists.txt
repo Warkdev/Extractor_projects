@@ -17,10 +17,15 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
+# CMAKE Version.
 cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
 
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+#list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
+# Project Name
+project(MaNGOS_Extractors VERSION 0.22.0)
+
+# Flags
 cmake_policy(SET CMP0028 NEW)
 cmake_policy(SET CMP0054 NEW)
 cmake_policy(SET CMP0042 NEW)
@@ -52,8 +57,6 @@ message(
 )
 message("")
 
-project(MaNGOS_Extractors VERSION 0.22.0)
-
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
   set(CMAKE_INSTALL_PREFIX ${CMAKE_BINARY_DIR}/install CACHE PATH "Default install directory" FORCE)
 endif()
@@ -77,21 +80,58 @@ else()
 endif()
 
 # Used for install targets
-find_package(Poco REQUIRED Foundation)
 set(TOOLS_DIR "tools")
 set(EXTRACTOR_BINARIES_DIR "${CMAKE_SOURCE_DIR}/src/tools/Extractor_Binaries")
+
+# External Libs
+## POCO
+add_subdirectory(./libs/poco)
+## StormLib
+add_subdirectory(./libs/StormLib)
 
 #=======================================================#
 #extractor
 #=======================================================#
+
+#Main group
+file(GLOB SRC_GRP_MAIN src/*.cpp src/*.h)
+source_group("main" FILES ${SRC_GRP_MAIN})
+
+#Common Client group
+file(GLOB SRC_GRP_CLIENT src/client/*.cpp src/client/*.h)
+source_group("client" FILES ${SRC_GRP_CLIENT})
+
+#Client Classic group
+file(GLOB SRC_GRP_CLIENT_CLASSIC src/client/classic/*.cpp src/client/classic/*.h)
+source_group("client\\classic" FILES ${SRC_GRP_CLIENT_CLASSIC})
+
+#Client Bruning Crusade group
+file(GLOB SRC_GRP_CLIENT_TBC src/client/burningcrusade/*.cpp src/client/burningcrusade/*.h)
+source_group("client\\burningcrusade" FILES ${SRC_GRP_CLIENT_TBC})
+
+#Client Wrath of the Lich King group
+file(GLOB SRC_GRP_CLIENT_WOTLK src/client/wrathlichking/*.cpp src/client/wrathlichking/*.h)
+source_group("client\\wrathlichking" FILES ${SRC_GRP_CLIENT_WOTLK})
+
+#Client Cataclysm group
+file(GLOB SRC_GRP_CLIENT_CATA src/client/cataclysm/*.cpp src/client/cataclysm/*.h)
+source_group("client\\cataclysm" FILES ${SRC_GRP_CLIENT_CATA})
+
 add_executable(extractor
-    src/Logger.cpp
-    $<$<BOOL:${WIN32}>:map-extractor/map-extractor.rc>
+    ${SRC_GRP_MAIN}
+    ${SRC_GRP_CLIENT}
+    ${SRC_GRP_CLIENT_CLASSIC}
+    ${SRC_GRP_CLIENT_TBC}
+    ${SRC_GRP_CLIENT_WOTLK}
+    ${SRC_GRP_CLIENT_CATA}
+    $<$<BOOL:${WIN32}>:src/extractor.rc>
 )
 
 target_link_libraries(extractor
     PUBLIC
+    storm
     Poco::Foundation
+    Poco::Util
 )
 
 install(
