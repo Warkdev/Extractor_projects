@@ -22,12 +22,30 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-#include "../Extractor.h"
-#include "Poco/Util/LayeredConfiguration.h"
+#include <string>
+#include "Poco/Logger.h"
+#include "MPQFile.h"
 
-using Poco::Util::LayeredConfiguration;
+using Poco::Logger;
 
-class ExtractorBurningCrusade : public Extractor
+class DBC : public MPQFile
 {
-
+	public:
+		DBC(std::string name, char* data, long size);
+		~DBC();
+		virtual bool parse();
+		int getRecordCount();
+		BinaryReader* getRecord(int idx);
+		std::string getString(int offset);
+	private:
+		const std::string HEADER_WDBC = "WDBC";
+		/** DBC Header */
+		struct Header {
+			std::string magic; // always 'WDBC'
+			unsigned int recordCount; // records per file
+			unsigned int fieldCount; // fields per record
+			unsigned int recordSize; // sum (sizeof (field_type_i)) | 0 <= i < field_count. field_type_i is NOT defined in the files.
+			unsigned int stringBlockSize;
+		} _header;
+		unsigned long _offsetString;
 };

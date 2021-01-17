@@ -65,3 +65,13 @@ bool MPQManager::extractFile(std::string file, std::string path)
 	}
 	return false;
 }
+
+MPQFile* MPQManager::getFile(std::string file, Version version)
+{
+	auto it = _mapFiles.find(file);
+	if (it != _mapFiles.end())
+	{
+		return it->second->getFile(file, version);
+	}
+	return NULL;
+}

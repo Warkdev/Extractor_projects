@@ -22,12 +22,18 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-#include "../Extractor.h"
-#include "Poco/Util/LayeredConfiguration.h"
+#include <iostream>
 
-using Poco::Util::LayeredConfiguration;
+class CImVector {
+	public:
+		CImVector();
+		CImVector(char b, char g, char r, char a);
 
-class ExtractorBurningCrusade : public Extractor
-{
+		friend std::ostream& operator <<(std::ostream& stream, const CImVector& vector);
+		friend std::istream& operator >>(std::istream& stream, CImVector& vector);
 
+		char b;
+		char g;
+		char r;
+		char a;
 };

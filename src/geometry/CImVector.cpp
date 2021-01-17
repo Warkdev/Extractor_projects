@@ -22,12 +22,20 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-#include "../Extractor.h"
-#include "Poco/Util/LayeredConfiguration.h"
+#include "CImVector.h"
 
-using Poco::Util::LayeredConfiguration;
+CImVector::CImVector() : b(0), g(0), r(0), a(0) {};
 
-class ExtractorBurningCrusade : public Extractor
+CImVector::CImVector(char b, char g, char r, char a) : b(b), g(g), r(r), a(a) {};
+
+std::ostream& operator <<(std::ostream& stream, CImVector& vector)
 {
+	stream << vector.b << vector.g << vector.r << vector.a;
+	return stream;
+}
 
-};
+std::istream& operator >>(std::istream& stream, CImVector& vector)
+{
+	stream >> vector.b >> vector.g >> vector.r >> vector.a;
+	return stream;
+}

@@ -22,12 +22,20 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-#include "../Extractor.h"
-#include "Poco/Util/LayeredConfiguration.h"
+#include "CArgb.h"
 
-using Poco::Util::LayeredConfiguration;
+CArgb::CArgb() : b(0), g(0), r(0), a(0) {};
 
-class ExtractorBurningCrusade : public Extractor
+CArgb::CArgb(char b, char g, char r, char a) : b(b), g(g), r(r), a(a) {};
+
+std::ostream& operator <<(std::ostream& stream, CArgb& color)
 {
+	stream << color.r << color.g << color.b << color.a;
+	return stream;
+}
 
-};
+std::istream& operator >>(std::istream& stream, CArgb& color)
+{
+	stream >> color.r >> color.g >> color.b >> color.a;
+	return stream;
+}

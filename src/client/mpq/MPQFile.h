@@ -22,12 +22,27 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-#include "../Extractor.h"
-#include "Poco/Util/LayeredConfiguration.h"
+#ifndef MPQFILE_H
+#define MPQFILE_H
 
-using Poco::Util::LayeredConfiguration;
+#include <string>
+#include "Poco/Logger.h"
+#include "Poco/BinaryReader.h"
 
-class ExtractorBurningCrusade : public Extractor
+using Poco::Logger;
+using Poco::BinaryReader;
+
+class MPQFile
 {
-
+	public:
+		MPQFile(std::string name, char* data, long size);
+		virtual bool parse();
+	protected:
+		MPQFile();
+		std::string readString();
+		Logger& _logger = Logger::get("Extractor");
+		std::string _name;
+		BinaryReader* _buffer;
+		long _size;
 };
+#endif

@@ -22,12 +22,26 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-#include "../Extractor.h"
-#include "Poco/Util/LayeredConfiguration.h"
+#ifndef POINT3D_H
+#define POINT3D_H
+#include <iostream>
+#include "Poco/BinaryReader.h"
 
-using Poco::Util::LayeredConfiguration;
+using Poco::BinaryReader;
 
-class ExtractorBurningCrusade : public Extractor
+class Point3D 
 {
+	public:
+		Point3D();
+		Point3D(float x, float y, float z);
 
+		friend std::ostream& operator<<(std::ostream& stream, const Point3D& point);
+		friend std::istream& operator>>(std::istream& stream, Point3D& point);
+		friend BinaryReader& operator>>(BinaryReader& reader, Point3D& point);
+
+		float x;
+		float y;
+		float z;
 };
+
+#endif

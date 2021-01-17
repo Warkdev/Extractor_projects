@@ -22,12 +22,18 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-#include "../Extractor.h"
-#include "Poco/Util/LayeredConfiguration.h"
+#include <iostream>
+#include "Point3D.h"
 
-using Poco::Util::LayeredConfiguration;
-
-class ExtractorBurningCrusade : public Extractor
+class CAaSphere
 {
+public:
+	CAaSphere();
+	CAaSphere(float x, float y, float z, float radius);
 
+	friend std::ostream& operator <<(std::ostream& stream, const CAaSphere& sphere);
+	friend std::istream& operator >>(std::istream& stream, CAaSphere& sphere);
+
+	Point3D position;
+	float radius;
 };

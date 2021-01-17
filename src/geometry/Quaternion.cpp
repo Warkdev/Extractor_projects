@@ -22,12 +22,21 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-#include "../Extractor.h"
-#include "Poco/Util/LayeredConfiguration.h"
+#include "Quaternion.h"
 
-using Poco::Util::LayeredConfiguration;
 
-class ExtractorBurningCrusade : public Extractor
+Quaternion::Quaternion() : w(0), x(0), y(0), z(0) {};
+
+Quaternion::Quaternion(float w, float x, float y, float z) : w(w), x(x), y(y), z(z) {};
+
+std::ostream& operator <<(std::ostream& stream, Quaternion& point)
 {
+	stream << point.w << point.x << point.y << point.z;
+	return stream;
+}
 
-};
+std::istream& operator >>(std::istream& stream, Quaternion& point)
+{
+	stream >> point.w >> point.x >> point.y >> point.z;
+	return stream;
+}

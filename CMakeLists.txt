@@ -101,6 +101,10 @@ source_group("main" FILES ${SRC_GRP_MAIN})
 file(GLOB SRC_GRP_CLIENT src/client/*.cpp src/client/*.h)
 source_group("client" FILES ${SRC_GRP_CLIENT})
 
+#MPQ Files Client group
+file(GLOB SRC_GRP_CLIENT_MPQ src/client/mpq/*.cpp src/client/mpq/*.h)
+source_group("client\\mpq" FILES ${SRC_GRP_CLIENT_MPQ})
+
 #Client Classic group
 file(GLOB SRC_GRP_CLIENT_CLASSIC src/client/classic/*.cpp src/client/classic/*.h)
 source_group("client\\classic" FILES ${SRC_GRP_CLIENT_CLASSIC})
@@ -117,13 +121,24 @@ source_group("client\\wrathlichking" FILES ${SRC_GRP_CLIENT_WOTLK})
 file(GLOB SRC_GRP_CLIENT_CATA src/client/cataclysm/*.cpp src/client/cataclysm/*.h)
 source_group("client\\cataclysm" FILES ${SRC_GRP_CLIENT_CATA})
 
+#Map File group
+file(GLOB SRC_GRP_MAP_FILES src/maps/*.cpp src/maps/*.h)
+source_group("maps" FILES ${SRC_GRP_MAP_FILES})
+
+#Geometry File group
+file(GLOB SRC_GRP_GEOMETRY_FILES src/geometry/*.cpp src/geometry/*.h)
+source_group("geometry" FILES ${SRC_GRP_GEOMETRY_FILES})
+
 add_executable(extractor
     ${SRC_GRP_MAIN}
+    ${SRC_GRP_GEOMETRY_FILES}
+    ${SRC_GRP_MAP_FILES}
     ${SRC_GRP_CLIENT}
     ${SRC_GRP_CLIENT_CLASSIC}
     ${SRC_GRP_CLIENT_TBC}
     ${SRC_GRP_CLIENT_WOTLK}
     ${SRC_GRP_CLIENT_CATA}
+    ${SRC_GRP_CLIENT_MPQ}
     $<$<BOOL:${WIN32}>:src/extractor.rc>
 )
 

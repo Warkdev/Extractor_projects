@@ -23,6 +23,9 @@
  */
 
 #include "../Extractor.h"
+#include "Poco/Util/LayeredConfiguration.h"
+
+using Poco::Util::LayeredConfiguration;
 
 class ExtractorCataclysm : public Extractor
 {

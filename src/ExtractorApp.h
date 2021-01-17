@@ -119,6 +119,8 @@ protected:
 
 	void detectBuild();
 
+	void extractData();
+
 private:
 	Logger& _logger = Logger::get("Extractor");
 	bool _helpRequested;

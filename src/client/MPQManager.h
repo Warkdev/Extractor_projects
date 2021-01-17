@@ -25,38 +25,41 @@
 #define MPQMANAGER_H
 
 #include <string>
-#include <map>
+#include <unordered_map>
 #include "Poco/Logger.h"
 #include "MPQArchive.h"
+#include "mpq/MPQFile.h"
 
 using Poco::Logger;
 
 class MPQManager
 {
-public:
-	MPQManager()
-	{
-	}
-
-	~MPQManager()
-	{
-		for (auto it = _mapFiles.begin(); it != _mapFiles.end(); ++it)
+	public:
+		MPQManager()
 		{
-			delete it->second;
 		}
-	}
 
-	void load(std::vector<std::string> files);
+		~MPQManager()
+		{
+			for (auto it = _mapFiles.begin(); it != _mapFiles.end(); ++it)
+			{
+				delete it->second;
+			}
+		}
 
-	std::vector<std::string> getDBCList();
+		void load(std::vector<std::string> files);
 
-	bool extractFile(std::string file, std::string path);
+		std::vector<std::string> getDBCList();
 
-protected:
-	Logger& _logger = Logger::get("Extractor");
-	const std::string PREFIX_DBC = "DBFilesClient\\";
-	std::map<std::string, MPQArchive*> _mapFiles; // Maintain a list of files contained in every MPQ and a pointer into which MPQArchive holds it.
-	std::vector<std::string> _dbcs;
+		bool extractFile(std::string file, std::string path);
+
+		MPQFile* getFile(std::string file, Version version);
+
+	protected:
+		Logger& _logger = Logger::get("Extractor");
+		const std::string PREFIX_DBC = "DBFilesClient\\";
+		std::unordered_map<std::string, MPQArchive*> _mapFiles; // Maintain a list of files contained in every MPQ and a pointer into which MPQArchive holds it.
+		std::vector<std::string> _dbcs;
 };
 
 #endif // !EXTRACTOR_H

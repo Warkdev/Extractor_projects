@@ -23,7 +23,12 @@
  */
 
 #include "MPQArchive.h"
+#include "Poco/String.h"
+
 #include "StormLib.h"
+#include "mpq/DBC.h"
+#include "mpq/WDT.h"
+#include "mpq/ADTV1.h"
 
 void MPQArchive::open()
 {
@@ -76,4 +81,67 @@ bool MPQArchive::extractFile(std::string file, std::string path)
 {
 	_logger.debug("Archive: %s, File: %s", _path.toString(), file);
 	return SFileExtractFile(_mpqHandle, file.c_str(), (TCHAR*) path.c_str(), SFILE_OPEN_FROM_MPQ);
+}
+
+MPQFile* MPQArchive::getFile(std::string file, Version version)
+{
+	HANDLE handle;
+
+    if (!SFileOpenFileEx(_mpqHandle, file.c_str(), SFILE_OPEN_FROM_MPQ, &handle))
+    {
+        int error = GetLastError();
+        if (error != ERROR_FILE_NOT_FOUND)
+        {
+            _logger.error("Can't open %s, err=%u!", file, GetLastError());
+        }
+        return NULL;
+    }
+
+    long hi = 0;
+    int size = SFileGetFileSize(handle, (DWORD*) &hi);
+
+    if (hi)
+    {
+        _logger.error("Can't open %s, size[hi] = %u!", file, hi);
+        SFileCloseFile(handle);
+        return NULL;
+    }
+
+    if (size <= 1)
+    {
+        _logger.error("Can't open %s, size[hi] = %u!", file, size);
+        SFileCloseFile(handle);
+        return NULL;
+    }
+
+    long read = 0;
+    char* buffer = new char[size];
+    if (!SFileReadFile(handle, buffer, size, (DWORD*) &read, NULL) || size != read)
+    {
+        _logger.error("Can't read %s, size=%u read=%u!", file, size);
+        SFileCloseFile(handle);
+        return NULL;
+    }
+
+    SFileCloseFile(handle);
+    
+    if (Poco::endsWith(file, EXT_DBC))
+    {
+        return new DBC(file, buffer, size);
+    }
+    else if (Poco::endsWith(file, EXT_WDT))
+    {
+        return new WDT(file, buffer, size);
+    }
+    else if (Poco::endsWith(file, EXT_ADT))
+    {
+        switch (version)
+        {
+            case Version::CLIENT_CLASSIC:
+                return new ADTV1(file, buffer, size);
+                break;
+        }
+    }
+
+    return new MPQFile(file, buffer, size);
 }

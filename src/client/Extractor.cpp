@@ -24,6 +24,7 @@
 
 #include "Extractor.h"
 #include "Poco/File.h"
+#include "mpq/DBC.h"
 
 using Poco::File;
 
@@ -39,7 +40,7 @@ void Extractor::loadMPQs()
 
 void Extractor::exportDBC(std::string outputPath)
 {
-	Path path(outputPath+PATH_DBC);
+	Path path(outputPath + PATH_DBC);
 	File file(path);
 	file.createDirectories();
 	std::vector<std::string> dbcList = _mpqManager->getDBCList();
@@ -51,11 +52,145 @@ void Extractor::exportDBC(std::string outputPath)
 		Path dbc(path.toString() + "/" + temp.getFileName());
 		if (!_mpqManager->extractFile(*it, dbc.toString()))
 		{
-			_logger.error("Error extracting DBC: %s", *it);
+			_logger.error("Error extracting DBC file: %s", *it);
 		}
 		else {
 			count++;
 		}
 	}
 	_logger.information("DBC Extraction Summary: %i / %z", count, dbcList.size());
+}
+
+void Extractor::exportMaps(std::string outputPath)
+{
+	_logger.information("You should not end up here");
+}
+
+void Extractor::readMaps()
+{
+	DBC* dbc = (DBC*)_mpqManager->getFile(DBC_MAPS, _version);
+
+	if (!dbc)
+	{
+		_logger.error("DBC file not found");
+		delete dbc;
+		return;
+	}
+
+	if (!dbc->parse())
+	{
+		_logger.error("Error while parsing the DBC file");
+		delete dbc;
+		return;
+	}
+
+	unsigned int id;
+	unsigned int string_id;
+	std::string name;
+
+	_maps.clear();
+
+	for (int i = 0; i < dbc->getRecordCount(); i++)
+	{
+		_logger.debug("Retrieving record %i", i);
+		BinaryReader* record = dbc->getRecord(i);
+		*record >> id;
+		*record >> string_id;
+		name = dbc->getString(string_id);
+
+		_logger.debug("Map ID: %u", id);
+		_logger.debug("Map Name: %s", name);
+
+		_maps.insert(std::make_pair(id, name));
+
+		delete record;
+	}
+
+	delete dbc;
+}
+
+void Extractor::readAreaTable()
+{
+	DBC* dbc = (DBC*)_mpqManager->getFile(DBC_AREATABLE, _version);
+
+	if (!dbc)
+	{
+		_logger.error("DBC file not found");
+		delete dbc;
+		return;
+	}
+
+	if (!dbc->parse())
+	{
+		_logger.error("Error while parsing the DBC file");
+		delete dbc;
+		return;
+	}
+
+	unsigned int id;
+	unsigned int flags;
+
+	_areas.clear();
+
+	for (int i = 0; i < dbc->getRecordCount(); i++)
+	{
+		_logger.debug("Retrieving record %i", i);
+		BinaryReader* record = dbc->getRecord(i);
+		*record >> id;
+		// We move at the third field
+		record->stream().seekg(3 * 4, std::ios::beg);
+		*record >> flags;
+
+		_logger.debug("Area ID: %u", id);
+		_logger.debug("Area flags: %u", flags);
+
+		_areas.insert(std::make_pair(id, flags));
+
+		delete record;
+	}
+
+	delete dbc;
+}
+
+void Extractor::readLiquidType()
+{
+	DBC* dbc = (DBC*)_mpqManager->getFile(DBC_LIQUIDTYPE, _version);
+
+	if (!dbc)
+	{
+		_logger.error("DBC file not found");
+		delete dbc;
+		return;
+	}
+
+	if (!dbc->parse())
+	{
+		_logger.error("Error while parsing the DBC file");
+		delete dbc;
+		return;
+	}
+
+	unsigned int id;
+	unsigned int flags;
+
+	_liquids.clear();
+
+	for (int i = 0; i < dbc->getRecordCount(); i++)
+	{
+		_logger.debug("Retrieving record %i", i);
+		BinaryReader* record = dbc->getRecord(i);
+		*record >> id;
+		// We move at the third field
+		record->stream().seekg(2 * 4, std::ios::beg);
+		*record >> flags;
+
+		_logger.debug("Liquid Type ID: %u", id);
+		_logger.debug("Liquid flags: %u", flags);
+
+		_liquids.insert(std::make_pair(id, flags));
+
+		delete record;
+	}
+
+	delete dbc;
 }

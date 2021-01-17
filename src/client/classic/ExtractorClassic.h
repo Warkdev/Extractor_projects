@@ -24,20 +24,34 @@
 
 #include <string>
 #include "../Extractor.h"
+#include "../mpq/ADTV1.h"
+#include "../../maps/MapFile.h"
+#include "Poco/Util/LayeredConfiguration.h"
 
-enum class LiquidTypes
-{
-	NO_WATER = 0x00,
-	MAGMA = 0x01,
-	OCEAN = 0x02,
-	SLIME = 0x04,
-	WATER = 0x08
-};
+using Poco::Util::LayeredConfiguration;
 
 class ExtractorClassic : public Extractor
 {
 	public:
+		ExtractorClassic(LayeredConfiguration* config)
+		{
+			_config = config;
+		}
 		virtual void init(std::string clientPath);
-	//private:
+		virtual void exportMaps(std::string outputPath);
+	protected:
+		bool convertADT(ADTV1* adt, MapFile* map);
+		void handleAreas(MapFile* map, MCNK* cell, unsigned int i, unsigned int j, unsigned int maxAreaId);
+		void handleHeight(MapFile* map, MCNK* cell, unsigned int i, unsigned int j, bool allowHeightLimit, float useMinHeight);
+		void handleLiquid(MapFile* map, MCNK* cell, unsigned int i, unsigned int j);
+		void handleHoles(MapFile* map, MCNK* cell, unsigned int i, unsigned int j);
+		void packAreaData(MapFile* map);
+		void packHeight(MapFile* map, bool allowFloatToInt, float floatHeightDeltaLimit, float floatToByteLimit, float floatToShortLimit);
+		void packLiquid(MapFile* map, bool allowFloatToInt, float floatLiquidDeltaLimit, float useMinHeight);
+		void packHoles(MapFile* map);
+		void packData(MapFile* map, bool allowFloatToInt, float floatHeightDeltaLimit, float floatLiquidDeltaLimit, float floatToByteLimit, float floatToShortLimit, float useMinHeight);
+	private:
+		const std::string PATTERN_WDT = "World\\Maps\\%s\\%s.wdt";
+		const std::string PATTERN_ADT = "World\\Maps\\%s\\%s_%i_%i.adt";
 		//std::string _listMPQ[11] = { "base.MPQ", "dbc.MPQ", "misc.MPQ", "model.MPQ", "sound.MPQ", "speech.MPQ", "terrain.MPQ", "texture.MPQ", "wmo.MPQ", "patch.MPQ", "patch-2.MPQ" };
 };

@@ -22,8 +22,11 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-#include <Poco/Path.h>
+#include "Poco/Path.h"
 #include "Poco/Logger.h"
+#include "mpq/MPQFile.h"
+#include "Version.h"
+
 // Win 32 specific headers
 #ifdef _WIN32
 #include <Windows.h>
@@ -36,6 +39,7 @@ typedef void* HANDLE;
 
 using Poco::Path;
 using Poco::Logger;
+
 /**
 * @file MPQArchive.cc
 * 
@@ -58,9 +62,13 @@ class MPQArchive
 
 		std::string getName();
 		std::vector<std::string> getFilesList();
+		MPQFile* getFile(std::string file, Version version);
 		bool extractFile(std::string file, std::string path);
 
 	private:
+		const std::string EXT_DBC = ".dbc";
+		const std::string EXT_WDT = ".wdt";
+		const std::string EXT_ADT = ".adt";
 		Logger& _logger = Logger::get("Extractor");
 		HANDLE _mpqHandle;
 		Path _path;

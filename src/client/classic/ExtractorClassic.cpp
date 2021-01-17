@@ -24,8 +24,13 @@
 
 #include "ExtractorClassic.h"
 #include "Poco/Path.h"
+#include "Poco/File.h"
+#include "../../maps/MapFile.h"
+#include "../mpq/WDT.h"
+#include "../mpq/ADTV1.h"
 
 using Poco::Path;
+using Poco::File;
 
 void ExtractorClassic::init(std::string clientPath)
 {
@@ -37,4 +42,506 @@ void ExtractorClassic::init(std::string clientPath)
 		Path path(client, mpqs[i]);
 		_listMPQ.push_back(path.toString());
 	}
+	_version = Version::CLIENT_CLASSIC;
+}
+
+void ExtractorClassic::exportMaps(std::string outputPath)
+{
+	_logger.information("Extracting Maps..");
+	Path path(outputPath + PATH_MAPS);
+	File file(path);
+	file.createDirectories();
+
+	// For Classic, we only need Maps and AreaTable data.
+	readMaps();
+	readAreaTable();
+	char wdtFile[1024];
+	char adtFile[1024];
+
+	for (auto it = _maps.begin(); it != _maps.end(); it++)
+	{
+		_logger.information("Loading WDT file %s.wdt (%u)", it->second, it->first);
+		sprintf(wdtFile, PATTERN_WDT.c_str(), it->second.c_str(), it->second.c_str());
+		WDT* wdt = (WDT*) _mpqManager->getFile(std::string(wdtFile), _version);
+		if (!wdt)
+		{
+			_logger.warning("WDT file does not exist, warning can be safely ignored by not map info will be generated");
+			delete wdt;
+			continue;
+		}
+		if (!wdt->parse())
+		{
+			_logger.error("Error while parsing the WDT file");
+			delete wdt;
+			continue;
+		}
+		
+		for (int x = 0; x < WDT::MAP_TILE_SIZE; x++)
+		{
+			for (int y = 0; y < WDT::MAP_TILE_SIZE; y++)
+			{
+				if (wdt->hasADT(x, y))
+				{
+					_logger.debug("Loading ADT file (X: %i, Y: %i)", x, y);
+					sprintf(adtFile, PATTERN_ADT.c_str(), it->second.c_str(), it->second.c_str(), y, x); // Note how index are reversed.
+					ADTV1* adt = (ADTV1*) _mpqManager->getFile(std::string(adtFile), _version);
+
+					if (!adt)
+					{
+						_logger.error("ADT file does not exist");
+						delete adt;
+						continue;
+					}
+
+					if (!adt->parse())
+					{
+						_logger.error("Error while parsing the ADT file");
+						delete adt;
+						continue;
+					}
+
+					MapFile map(it->first, x, y);
+
+					if (!convertADT(adt, &map))
+					{
+						_logger.error("Error while generating the map file");
+						delete adt;
+						continue;
+					}
+
+					if (!map.save(path.toString()))
+					{
+						_logger.error("Error while saving the map file");
+						delete adt;
+						continue;
+					}
+
+					delete adt;
+				}
+			}
+		}
+
+		delete wdt;
+	}
+}
+
+bool ExtractorClassic::convertADT(ADTV1* adt, MapFile* map)
+{
+    unsigned int maxAreaId = _areas.rbegin()->first;
+    bool allowHeightLimit = _config->getBool(PROP_ALLOW_HEIGHT_LIMIT);
+    float useMinHeight = (float) _config->getDouble(PROP_USE_MIN_HEIGHT);
+    bool allowFlowToInt = _config->getBool(PROP_ALLOW_FLOAT_TO_INT);
+    float floatHeightDeltaTimit = (float) _config->getDouble(PROP_FLAT_HEIGHT_DELTA_LIMIT);
+    float floatLiquidDeltaTimit = (float)_config->getDouble(PROP_FLAT_LIQUID_DELTA_LIMIT);
+    float floatToByteLimit = (float) _config->getDouble(PROP_FLOAT_TO_BYTE_LIMIT);
+    float floatToShortLimit = (float) _config->getDouble(PROP_FLOAT_TO_SHORT_LIMIT);
+
+    map->mapHeightHeader.gridMaxHeight = -200000;
+    map->mapHeightHeader.gridHeight = 20000;
+    map->heightStep = 0.0f;
+
+    for (int i = 0; i < ADTV1::SIZE_TILE_MAP; i++)
+    {
+        for (int j = 0; j < ADTV1::SIZE_TILE_MAP; j++)
+        {
+            MCNK* cell = adt->getCell(i, j);
+            if (!cell)
+            {
+                _logger.error("Couldn't acquire a chunk!");
+                continue;
+            }
+
+            handleAreas(map, cell, i, j, maxAreaId);
+            handleHeight(map, cell, i, j, allowHeightLimit, useMinHeight);
+            handleLiquid(map, cell, i, j);
+            handleHoles(map, cell, i, j);
+
+            delete cell;
+        }
+    }
+
+    packData(map, allowFlowToInt, floatHeightDeltaTimit, floatLiquidDeltaTimit, floatToByteLimit, floatToShortLimit, useMinHeight);
+
+    return true;
+}
+
+void ExtractorClassic::handleAreas(MapFile* map, MCNK* cell, unsigned int i, unsigned int j, unsigned int maxAreaId)
+{
+    if (cell->areaId && cell->areaId <= maxAreaId)
+    {
+        unsigned int flag = _areas.find(cell->areaId)->second;
+        if (flag == 0xFFFF)
+        {
+            _logger.warning("Can not find area flag for area %u [%u, %u]", cell->areaId, cell->indexX, cell->indexY);
+        }
+        map->areaFlags[i][j] = flag;
+    }
+    else {
+        map->areaFlags[i][j] = 0xFFFF;
+    }
+}
+
+void ExtractorClassic::handleHeight(MapFile* map, MCNK* cell, unsigned int i, unsigned int j, bool allowHeightLimit, float useMinHeight)
+{
+    // Get custom height
+    MCNK::MCVT* v = &(cell->vertices);
+
+    // Height values for triangles stored in order:
+    // 1     2     3     4     5     6     7     8     9
+    //    10    11    12    13    14    15    16    17
+    // 18    19    20    21    22    23    24    25    26
+    //    27    28    29    30    31    32    33    34
+    // . . . . . . . .
+    // For better get height values merge it to V9 and V8 map
+    // V9 height map:
+    // 1     2     3     4     5     6     7     8     9
+    // 18    19    20    21    22    23    24    25    26
+    // . . . . . . . .
+    // V8 height map:
+    //    10    11    12    13    14    15    16    17
+    //    27    28    29    30    31    32    33    34
+    // . . . . . . . .
+
+    // Set map height as grid height
+    for (int y = 0; y <= ADTV1::CHUNK_TILE_MAP_LENGTH; y++)
+    {
+        int cy = i * ADTV1::CHUNK_TILE_MAP_LENGTH + y;
+        for (int x = 0; x <= ADTV1::CHUNK_TILE_MAP_LENGTH; x++)
+        {
+            int cx = j * ADTV1::CHUNK_TILE_MAP_LENGTH + x;
+            if (y < ADTV1::CHUNK_TILE_MAP_LENGTH && x < ADTV1::CHUNK_TILE_MAP_LENGTH) // V8 has only 8*8 dimensions.
+            {
+                map->V8[cy][cx] = cell->position.z;
+                if (v) // Custom Height
+                {
+                    map->V8[cy][cx] += v->points[y * (ADTV1::CHUNK_TILE_MAP_LENGTH * 2 + 1) + ADTV1::CHUNK_TILE_MAP_LENGTH + 1 + x];
+                }
+
+                // Check for allow limit minimum height (not store height in deep ochean - allow save some memory)
+                if (allowHeightLimit)
+                {
+                    if (map->V8[cy][cx] < useMinHeight)
+                    {
+                        map->V8[cy][cx] = useMinHeight;
+                    }
+                }
+
+                if (map->mapHeightHeader.gridMaxHeight < map->V8[cy][cx])
+                {
+                    map->mapHeightHeader.gridMaxHeight = map->V8[cy][cx];
+                }
+                if (map->mapHeightHeader.gridHeight > map->V8[cy][cx])
+                {
+                    map->mapHeightHeader.gridHeight = map->V8[cy][cx];
+                }
+            }
+
+            map->V9[cy][cx] = cell->position.z;
+            if (v) // Custom Height
+            {
+                map->V9[cy][cx] += v->points[y * (ADTV1::CHUNK_TILE_MAP_LENGTH * 2 + 1) + x];
+            }
+
+            if (allowHeightLimit)
+            {
+                if (map->V9[cy][cx] < useMinHeight)
+                {
+                    map->V9[cy][cx] = useMinHeight;
+                }
+            }
+
+            if (map->mapHeightHeader.gridMaxHeight < map->V9[cy][cx])
+            {
+                map->mapHeightHeader.gridMaxHeight = map->V9[cy][cx];
+            }
+            if (map->mapHeightHeader.gridHeight > map->V9[cy][cx])
+            {
+                map->mapHeightHeader.gridHeight = map->V9[cy][cx];
+            }
+        }
+    }
+}
+
+void ExtractorClassic::handleLiquid(MapFile* map, MCNK* cell, unsigned int i, unsigned int j)
+{
+    MCNK::MCLQ* liquid = cell->listLiquids;
+    int count = 0;
+    if (!liquid || cell->sizeLiquid <= 8)
+    {
+        return;
+    }
+
+    for (int y = 0; y < ADTV1::CHUNK_TILE_MAP_LENGTH; y++)
+    {
+        int cy = i * ADTV1::CHUNK_TILE_MAP_LENGTH + y;
+        for (int x = 0; x < ADTV1::CHUNK_TILE_MAP_LENGTH; x++)
+        {
+            int cx = j * ADTV1::CHUNK_TILE_MAP_LENGTH + x;
+            if (ADTV1::hasLiquid(liquid, y, x))
+            {
+                map->liquidShow[cy][cx] = true;
+                if (ADTV1::isDarkWater(liquid, y, x))
+                {
+                    map->liquidFlags[i][j] |= MapFile::MAP_LIQUID_TYPE_DARK_WATER;
+                }
+                ++count;
+            }
+        }
+    }
+
+
+    if (ADTV1::isRiver(cell))
+    {
+        map->liquidEntry[i][j] = 1;
+        map->liquidFlags[i][j] |= MapFile::MAP_LIQUID_TYPE_WATER;            // water
+    }
+    if (ADTV1::isOcean(cell))
+    {
+        map->liquidEntry[i][j] = 2;
+        map->liquidFlags[i][j] |= MapFile::MAP_LIQUID_TYPE_OCEAN;            // ocean
+    }
+    if (ADTV1::isMagma(cell) || ADTV1::isSlime(cell))
+    {
+        map->liquidEntry[i][j] = 3;
+        map->liquidFlags[i][j] |= MapFile::MAP_LIQUID_TYPE_MAGMA;            // magma/slime
+    }
+
+    if (!count && map->liquidFlags[i][j])
+    {
+        _logger.error("Wrong liquid type detected in MCLQ chunk");
+    }
+
+    for (int y = 0; y <= ADTV1::CHUNK_TILE_MAP_LENGTH; y++)
+    {
+        int cy = i * ADTV1::CHUNK_TILE_MAP_LENGTH + y;
+        for (int x = 0; x <= ADTV1::CHUNK_TILE_MAP_LENGTH; x++)
+        {
+            int cx = j * ADTV1::CHUNK_TILE_MAP_LENGTH + x;
+            map->liquidHeight[cy][cx] = liquid->height[y * ADTV1::CHUNK_TILE_MAP_LENGTH + x];
+            map->liquidLight[cy][cx] = liquid->lights[y * ADTV1::CHUNK_TILE_MAP_LENGTH + x];
+        }
+    }
+}
+
+void ExtractorClassic::handleHoles(MapFile* map, MCNK* cell, unsigned int i, unsigned int j)
+{
+    map->holes[i][j] = cell->holes;
+}
+
+void ExtractorClassic::packAreaData(MapFile* map)
+{
+    map->fullArea = false;
+    map->header.areaMapOffset = sizeof(map->header);
+    map->header.areaMapSize = sizeof(MapFile::MapAreaHeader);
+    map->areaHeader.flags = 0;
+
+    unsigned int areaflag = map->areaFlags[0][0];
+    for (int y = 0; y < ADTV1::SIZE_TILE_MAP; y++)
+    {
+        for (int x = 0; x < ADTV1::SIZE_TILE_MAP; x++)
+        {
+            if (map->areaFlags[y][x] != areaflag)
+            {
+                map->fullArea = true;
+                y = ADTV1::SIZE_TILE_MAP;
+                break;
+            }
+        }
+    }
+
+    if (map->fullArea)
+    {
+        map->areaHeader.gridArea = 0;
+        map->header.areaMapSize += sizeof(map->areaFlags);
+    }
+    else {
+        map->areaHeader.flags |= MapFile::MAP_AREA_NO_AREA;
+        map->areaHeader.gridArea = areaflag;
+    }
+}
+
+void ExtractorClassic::packHeight(MapFile* map, bool allowFloatToInt, float floatHeightDeltaLimit, float floatToByteLimit, float floatToShortLimit)
+{
+    map->header.heightMapOffset = map->header.areaMapOffset + map->header.areaMapSize;
+    map->header.heightMapSize = sizeof(MapFile::MapHeightHeader);
+
+    map->mapHeightHeader.flags = 0;
+    float diff = map->mapHeightHeader.gridMaxHeight - map->mapHeightHeader.gridHeight;
+
+    // Don't store if the surface is flat.
+    if ((map->mapHeightHeader.gridHeight == map->mapHeightHeader.gridMaxHeight) || (allowFloatToInt && diff < floatHeightDeltaLimit))
+    {
+        map->mapHeightHeader.flags |= MapFile::MAP_HEIGHT_NO_HEIGHT;
+    }
+    else
+    {
+        if (allowFloatToInt)
+        {
+            if (diff < floatToByteLimit)
+            {
+                map->mapHeightHeader.flags |= MapFile::MAP_HEIGHT_AS_INT8;
+                map->heightStep = 255 / diff;
+                map->header.heightMapSize += 33025; // Size of V8 & V9 on a single byte.
+            }
+            else if (diff < floatToShortLimit)
+            {
+                map->mapHeightHeader.flags |= MapFile::MAP_HEIGHT_AS_INT16;
+                map->heightStep = 65535 / diff;
+                map->header.heightMapSize += 66050; // Size of V8 & V9 on 2-bytes.
+            }
+            else
+            {
+                map->header.heightMapSize += 132100; // Size of V8 & V9 on 4-bytes.
+            }
+        }
+        else
+        {
+            map->header.heightMapSize += 132100; // Size of V8 & V9 on 4-bytes.
+        }
+    }
+}
+
+void ExtractorClassic::packLiquid(MapFile* map, bool allowFloatToInt, float floatLiquidDeltaLimit, float useMinHeight)
+{
+    map->fullLiquidType = false;
+    unsigned char liquidType = map->liquidFlags[0][0];
+
+    for (int y = 0; y < ADTV1::SIZE_TILE_MAP; y++)
+    {
+        for (int x = 0; x < ADTV1::SIZE_TILE_MAP; x++)
+        {
+            if (map->liquidFlags[y][x] != liquidType)
+            {
+                map->fullLiquidType = true;
+                y = ADTV1::SIZE_TILE_MAP;
+                break;
+            }
+        }
+    }
+
+    // No water data, the whole grid has '0' as liquid type.
+    if (!liquidType && !map->fullLiquidType)
+    {
+        map->header.liquidMapOffset = 0;
+        map->header.liquidMapSize = 0;
+    }
+    else
+    {
+        int minX = 255, minY = 255;
+        int maxX = 0, maxY = 0;
+        float maxHeight = -20000;
+        float minHeight = 20000;
+        for (int y = 0; y < ADTV1::SIZE_ADT_GRID; y++)
+        {
+            for (int x = 0; x < ADTV1::SIZE_ADT_GRID; x++)
+            {
+                if (map->liquidShow[y][x])
+                {
+                    if (minX > x)
+                    {
+                        minX = x;
+                    }
+                    if (maxX < x)
+                    {
+                        maxX = x;
+                    }
+                    if (minY > y)
+                    {
+                        minY = y;
+                    }
+                    if (maxY < y)
+                    {
+                        maxY = y;
+                    }
+                    float h = map->liquidHeight[y][x];
+                    if (maxHeight < h)
+                    {
+                        maxHeight = h;
+                    }
+                    if (minHeight > h)
+                    {
+                        minHeight = h;
+                    }
+                }
+                else
+                {
+                    map->liquidHeight[y][x] = useMinHeight;
+                }
+            }
+        }
+        map->header.liquidMapOffset = map->header.heightMapOffset + map->header.heightMapSize;
+        map->header.liquidMapSize = sizeof(MapFile::MapLiquidHeader);
+        map->mapLiquidHeader.flags = 0;
+        map->mapLiquidHeader.liquidType = 0;
+        map->mapLiquidHeader.offsetX = minX;
+        map->mapLiquidHeader.offsetY = minY;
+        map->mapLiquidHeader.width = maxX - minX + 1 + 1;
+        map->mapLiquidHeader.height = maxY - minY + 1 + 1;
+        map->mapLiquidHeader.liquidLevel = minHeight;
+
+        if (maxHeight == minHeight)
+        {
+            map->mapLiquidHeader.flags |= MapFile::MAP_LIQUID_NO_HEIGHT;
+        }
+
+        // Not need store if flat surface
+        if (allowFloatToInt && (maxHeight - minHeight) < floatLiquidDeltaLimit)
+        {
+            map->mapLiquidHeader.flags |= MapFile::MAP_LIQUID_NO_HEIGHT;
+        }
+
+        if (!map->fullLiquidType)
+        {
+            map->mapLiquidHeader.flags |= MapFile::MAP_LIQUID_NO_TYPE;
+        }
+
+        if (map->mapLiquidHeader.flags & MapFile::MAP_LIQUID_NO_TYPE)
+        {
+            map->mapLiquidHeader.liquidType = liquidType;
+        }
+        else
+        {
+            map->header.liquidMapSize += sizeof(map->liquidEntry) + sizeof(map->liquidFlags);
+        }
+
+        if (!(map->mapLiquidHeader.flags & MapFile::MAP_LIQUID_NO_HEIGHT))
+        {
+            map->header.liquidMapSize += sizeof(float) * map->mapLiquidHeader.width * map->mapLiquidHeader.height;
+        }
+    }
+}
+
+void ExtractorClassic::packHoles(MapFile* map)
+{
+    if (map->header.liquidMapOffset)
+    {
+        map->header.holesOffset = map->header.liquidMapOffset + map->header.liquidMapSize;
+    }
+    else
+    {
+        map->header.holesOffset = map->header.heightMapOffset + map->header.heightMapSize;
+    }
+
+    map->header.holesSize = sizeof(map->holes);
+}
+
+void ExtractorClassic::packData(MapFile* map, bool allowFloatToInt, float floatHeightDeltaLimit, float floatLiquidDeltaLimit, float floatToByteLimit, float floatToShortLimit, float useMinHeight)
+{
+    sprintf(map->header.versionMagic, "z1.5");
+    map->header.buildMagic = 5875; // Classic build number, we only take 1.12 here.
+    map->header.areaMapOffset = sizeof(map->header);
+    map->header.areaMapSize = sizeof(MapFile::MapAreaHeader);
+
+    // First, pack area data.
+    packAreaData(map);
+
+    // Then, pack height data.
+    packHeight(map, allowFloatToInt, floatHeightDeltaLimit, floatToByteLimit, floatToShortLimit);
+
+    // Then, pack liquid data.
+    packLiquid(map, allowFloatToInt, floatLiquidDeltaLimit, useMinHeight);
+
+    // Then, pack holes data.
+    packHoles(map);
+    
 }

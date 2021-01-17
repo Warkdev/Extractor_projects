@@ -26,9 +26,11 @@
 
 #include <string>
 #include "Poco/Logger.h"
+#include "Poco/Util/LayeredConfiguration.h"
 #include "MPQManager.h"
 
 using Poco::Logger;
+using Poco::Util::LayeredConfiguration;
 
 class Extractor 
 {
@@ -36,6 +38,14 @@ class Extractor
 		Extractor()
 		{
 			_mpqManager = new MPQManager();
+			_version = Version::CLIENT_UNKNOWN;
+			_config = NULL;
+		}
+		Extractor(LayeredConfiguration* configuration)
+		{
+			_mpqManager = new MPQManager();
+			_version = Version::CLIENT_UNKNOWN;
+			_config = configuration;
 		}
 
 		~Extractor()
@@ -46,11 +56,33 @@ class Extractor
 		virtual void init(std::string clientPath);
 		void loadMPQs();
 		void exportDBC(std::string outputPath);
+		virtual void exportMaps(std::string outputPath);
 	protected:
+		void readMaps();
+		void readAreaTable();
+		void readLiquidType();
+
+		const std::string PROP_ALLOW_HEIGHT_LIMIT = "map.allowHeightLimit";
+		const std::string PROP_USE_MIN_HEIGHT = "map.useMinHeight";
+		const std::string PROP_ALLOW_FLOAT_TO_INT = "map.allowFloatToInt";
+		const std::string PROP_FLOAT_TO_BYTE_LIMIT = "map.floatToByteLimit";
+		const std::string PROP_FLOAT_TO_SHORT_LIMIT = "map.floatToShortLimit";
+		const std::string PROP_FLAT_HEIGHT_DELTA_LIMIT = "map.flatHeightDeltaLimit";
+		const std::string PROP_FLAT_LIQUID_DELTA_LIMIT = "map.flatLiquidDeltaLimit";
+
 		Logger& _logger = Logger::get("Extractor");
+		LayeredConfiguration* _config;
+		Version _version;
 		const std::string PATH_DBC = "/dbc";
+		const std::string PATH_MAPS = "/maps";
+		const std::string DBC_MAPS = "DBFilesClient\\Map.dbc";
+		const std::string DBC_AREATABLE = "DBFilesClient\\AreaTable.dbc";
+		const std::string DBC_LIQUIDTYPE = "DBFilesClient\\LiquidType.dbc";
 		std::vector<std::string> _listMPQ;
 		MPQManager* _mpqManager;
+		std::map<unsigned int, std::string> _maps;
+		std::map<unsigned int, unsigned int> _areas;
+		std::map<unsigned int, unsigned int> _liquids;
 };
 
 #endif // !EXTRACTOR_H

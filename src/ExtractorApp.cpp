@@ -43,9 +43,10 @@ using Poco::AutoPtr;
 
 void ExtractorApp::initialize(Application& self)
 {
-	loadConfiguration(); // load default configuration files, if present
+	int loaded = loadConfiguration(); // load default configuration files, if present
 	Application::initialize(self);
 	// add your own initialization code here
+	_logger.debug("Loaded %i configuration file", loaded);
 }
 
 void ExtractorApp::uninitialize()
@@ -173,6 +174,7 @@ int ExtractorApp::main(const ArgVec& args)
 		printWebsiteBanner();
 		printSummary();
 		detectBuild();
+		extractData();
 	}
 	return Application::EXIT_OK;
 }
@@ -207,7 +209,6 @@ void ExtractorApp::detectBuild()
 {
 	_version = ClientHelper::getBuildVersion(_clientPath);
 	_logger.information("Detected Client Build: %s", ClientHelper::getVersionName(_version));
-	Path path(_clientPath+"/Data");
 	// Handling versions
 	switch (_version)
 	{
@@ -219,22 +220,31 @@ void ExtractorApp::detectBuild()
 		case Version::CLIENT_SHADOWLANDS:
 			_logger.error("This build is not supported by this extractor");
 		case Version::CLIENT_CLASSIC:
-			_extractor = new ExtractorClassic();
-			_extractor->init(path.toString());
-			_extractor->loadMPQs();
-			if (_extractDbcs)
-			{
-				_extractor->exportDBC(_outputPath);
-			}
+			_extractor = new ExtractorClassic(&config());
 			break;
 		case Version::CLIENT_TBC:
-			_extractor = new ExtractorBurningCrusade();
+			//_extractor = new ExtractorBurningCrusade(&config());
 			break;
 		case Version::CLIENT_WOTLK:
-			_extractor = new ExtractorWrathLichKing();
+			//_extractor = new ExtractorWrathLichKing(&config());
 			break;
 		case Version::CLIENT_CATA:
-			_extractor = new ExtractorCataclysm();
+			//_extractor = new ExtractorCataclysm(&config());
 			break;
+	}
+}
+
+void ExtractorApp::extractData()
+{
+	Path path(_clientPath + "/Data");
+	_extractor->init(path.toString());
+	_extractor->loadMPQs();
+	if (_extractDbcs)
+	{
+		_extractor->exportDBC(_outputPath);
+	}
+	if (_extractMaps)
+	{
+		_extractor->exportMaps(_outputPath);
 	}
 }

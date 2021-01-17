@@ -22,12 +22,21 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-#include "../Extractor.h"
-#include "Poco/Util/LayeredConfiguration.h"
+#include <iostream>
 
-using Poco::Util::LayeredConfiguration;
-
-class ExtractorBurningCrusade : public Extractor
+class CAaBspNode
 {
+	public:
+		CAaBspNode();
+		CAaBspNode(unsigned short flags, unsigned short negChild, unsigned short posChild, unsigned short nFaces, unsigned int faceStart, float planeDist);
 
+		friend std::ostream& operator <<(std::ostream& stream, const CAaBspNode& node);
+		friend std::istream& operator >>(std::istream& stream, CAaBspNode& node);
+
+		unsigned short flags;
+		unsigned short negChild;
+		unsigned short posChild;
+		unsigned short nFaces;
+		unsigned int faceStart;
+		float planeDist;
 };
