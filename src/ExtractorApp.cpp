@@ -43,7 +43,6 @@ using Poco::AutoPtr;
 
 void ExtractorApp::initialize(Application& self)
 {
-	system("pause");
 	int loaded = loadConfiguration(); // load default configuration files, if present
 	Application::initialize(self);
 	// add your own initialization code here

@@ -104,7 +104,7 @@ MCNK* ADTV1::getCell(unsigned int x, unsigned int y)
 	// Move the stream at the correct location.
 	MCNK* chunk = new MCNK;
 	std::string temp;
-	unsigned int offset = _chunkInfos[y * SIZE_TILE_MAP + x].offsetMCNK;
+	unsigned int offset = _chunkInfos[x * SIZE_TILE_MAP + y].offsetMCNK;
 	_buffer->stream().seekg(offset, std::ios::beg);
 	_buffer->readRaw(4, chunk->magic);
 
@@ -259,19 +259,19 @@ bool ADTV1::hasLiquid(MCNK* chunk)
 	return chunk->flags & MCNK_IS_RIVER || chunk->flags & MCNK_IS_OCEAN || chunk->flags & MCNK_IS_MAGMA || chunk->flags & MCNK_IS_SLIME;
 }
 
-bool ADTV1::hasLiquid(MCNK::MCLQ* liquid, unsigned int y, unsigned int x)
+bool ADTV1::hasLiquid(MCNK::MCLQ* liquid, unsigned int x, unsigned int y)
 {
-	return liquid->flags[y * MCNK::LIQUID_FLAG_LENGTH + x] & MCLQ_HAS_LIQUID;
+	return liquid->flags[x * MCNK::LIQUID_FLAG_LENGTH + y] & MCLQ_HAS_LIQUID;
 }
 
-bool ADTV1::hasNoLiquid(MCNK::MCLQ* liquid, unsigned int y, unsigned int x)
+bool ADTV1::hasNoLiquid(MCNK::MCLQ* liquid, unsigned int x, unsigned int y)
 {
-	return liquid->flags[y * MCNK::LIQUID_FLAG_LENGTH + x] & MCLQ_NO_LIQUID;
+	return (liquid->flags[x * MCNK::LIQUID_FLAG_LENGTH + y] & MCLQ_NO_LIQUID) == MCLQ_NO_LIQUID;
 }
 
-bool ADTV1::isDarkWater(MCNK::MCLQ* liquid, unsigned int y, unsigned int x)
+bool ADTV1::isDarkWater(MCNK::MCLQ* liquid, unsigned int x, unsigned int y)
 {
-	return liquid->flags[y * MCNK::LIQUID_FLAG_LENGTH + x] & MCLQ_IS_DARK;
+	return liquid->flags[x * MCNK::LIQUID_FLAG_LENGTH + y] & MCLQ_IS_DARK;
 }
 
 bool ADTV1::hasNoLiquid(MCNK* chunk)

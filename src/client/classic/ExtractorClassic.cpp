@@ -279,7 +279,7 @@ void ExtractorClassic::handleLiquid(MapFile* map, MCNK* cell, unsigned int i, un
         for (int x = 0; x < ADTV1::CHUNK_TILE_MAP_LENGTH; x++)
         {
             int cx = j * ADTV1::CHUNK_TILE_MAP_LENGTH + x;
-            if (ADTV1::hasLiquid(liquid, y, x))
+            if (!ADTV1::hasNoLiquid(liquid, y, x))
             {
                 map->liquidShow[cy][cx] = true;
                 if (ADTV1::isDarkWater(liquid, y, x))

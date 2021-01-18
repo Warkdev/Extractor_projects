@@ -126,9 +126,9 @@ class ADTV1 : public MPQFile
 		MCNK* getCell(unsigned int x, unsigned int y);
 		unsigned int cellsSize();
 		bool hasLiquid(MCNK* chunk);
-		static bool hasLiquid(MCNK::MCLQ* liquid, unsigned int y, unsigned int x);
-		static bool hasNoLiquid(MCNK::MCLQ* liquid, unsigned int y, unsigned int x);
-		static bool isDarkWater(MCNK::MCLQ* liquid, unsigned int y, unsigned int x);
+		static bool hasLiquid(MCNK::MCLQ* liquid, unsigned int x, unsigned int y);
+		static bool hasNoLiquid(MCNK::MCLQ* liquid, unsigned int x, unsigned int y);
+		static bool isDarkWater(MCNK::MCLQ* liquid, unsigned int x, unsigned int y);
 		static bool isRiver(MCNK* chunk);
 		static bool isOcean(MCNK* chunk);
 		static bool isMagma(MCNK* chunk);
@@ -229,7 +229,7 @@ class ADTV1 : public MPQFile
 		};
 
 		enum ADTMCLQMask {
-			MCLQ_HAS_LIQUID = 0x03,
+			MCLQ_HAS_LIQUID = 0x06,
 			MCLQ_NO_LIQUID = 0x0F
 		};
 };
