@@ -36,7 +36,9 @@ void ExtractorClassic::init(std::string clientPath)
 {
 	_logger.information("Initializing ExtractorClassic..");
 	Path client(clientPath);
-	std::string mpqs[] = { "base.MPQ", "dbc.MPQ", "misc.MPQ", "model.MPQ", "speech.MPQ", "terrain.MPQ", "texture.MPQ", "wmo.MPQ", "patch.MPQ", "patch-2.MPQ" };
+    // This if the complete MPQ list but some of them have no interesting or recent data in them. Save time by not loading them.
+	//std::string mpqs[] = { "base.MPQ", "dbc.MPQ", "misc.MPQ", "model.MPQ", "speech.MPQ", "terrain.MPQ", "texture.MPQ", "wmo.MPQ", "patch.MPQ", "patch-2.MPQ" };
+    std::string mpqs[] = { "dbc.MPQ", "model.MPQ", "terrain.MPQ", "wmo.MPQ", "patch.MPQ", "patch-2.MPQ" };
 	for (int i = 0; i < (sizeof(mpqs) / sizeof(mpqs[0])); i++)
 	{
 		Path path(client, mpqs[i]);
@@ -321,6 +323,8 @@ void ExtractorClassic::handleLiquid(MapFile* map, MCNK* cell, unsigned int i, un
             map->liquidLight[cy][cx] = liquid->lights[y * ADTV1::CHUNK_TILE_MAP_LENGTH + x];
         }
     }
+
+    delete cell->listLiquids;
 }
 
 void ExtractorClassic::handleHoles(MapFile* map, MCNK* cell, unsigned int i, unsigned int j)

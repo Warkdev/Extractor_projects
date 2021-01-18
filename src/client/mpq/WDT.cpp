@@ -36,10 +36,12 @@ WDT::WDT(std::string name, char* data, long size)
 	MemoryInputStream* stream = new MemoryInputStream(data, _size);
 	_buffer = new BinaryReader(*stream);
 	_main.areas = new AreaInfo[static_cast<unsigned __int64>(MAP_TILE_SIZE) * MAP_TILE_SIZE];
+	_data = data;
 }
 
 WDT::~WDT()
 {
+	delete _data;
 	delete _main.areas;
 	delete _buffer;
 }

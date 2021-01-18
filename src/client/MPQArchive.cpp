@@ -45,7 +45,7 @@ void MPQArchive::open()
 void MPQArchive::close()
 {
 	_logger.debug("Closing archive %s", _path.toString());
-	SFileCloseArchive(&_mpqHandle);
+	SFileCloseArchive(_mpqHandle);
 }
 
 std::string MPQArchive::getName()
@@ -66,11 +66,22 @@ std::vector<std::string> MPQArchive::getFilesList()
 		return ret;
 	}
 
+    int count = 0;
 	ret.push_back(findFiles.cFileName);
 	while (SFileFindNextFile(search, &findFiles))
 	{
-		ret.push_back(findFiles.cFileName);
+        std::string file(findFiles.cFileName);
+        if (isAllowedExt(file))
+        {
+		    ret.push_back(findFiles.cFileName);
+            count++;
+        }
 	}
+
+    if (!count)
+    {
+        _logger.information("No file loaded from the archive %s", _path.toString());
+    }
 
 	SFileFindClose(search);
 
@@ -144,4 +155,15 @@ MPQFile* MPQArchive::getFile(std::string file, Version version)
     }
 
     return new MPQFile(file, buffer, size);
+}
+
+bool MPQArchive::isAllowedExt(std::string file)
+{
+    return (Poco::endsWith(file, EXT_DBC) 
+        || Poco::endsWith(file, EXT_WDT) 
+        || Poco::endsWith(file, EXT_ADT)
+        || Poco::endsWith(file, EXT_WMO)
+        || Poco::endsWith(file, EXT_M2)
+        || Poco::endsWith(file, EXT_MDX)
+        );
 }

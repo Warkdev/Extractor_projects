@@ -35,10 +35,12 @@ ADTV1::ADTV1(std::string name, char* data, long size)
 	_size = size;
 	MemoryInputStream* stream = new MemoryInputStream(data, _size);
 	_buffer = new BinaryReader(*stream);
+	_data = data;
 }
 
 ADTV1::~ADTV1()
 {
+	delete _data;
 	delete _chunkInfos;
 	delete _buffer;
 }

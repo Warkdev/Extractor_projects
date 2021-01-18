@@ -69,10 +69,14 @@ class MPQArchive
 		const std::string EXT_DBC = ".dbc";
 		const std::string EXT_WDT = ".wdt";
 		const std::string EXT_ADT = ".adt";
+		const std::string EXT_M2 = ".m2";
+		const std::string EXT_MDX = ".mdx";
+		const std::string EXT_WMO = ".wmo";
 		Logger& _logger = Logger::get("Extractor");
 		HANDLE _mpqHandle;
 		Path _path;
 
 		void open();
 		void close();
+		bool isAllowedExt(std::string file);
 };

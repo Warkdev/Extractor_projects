@@ -36,12 +36,14 @@ class MPQFile
 {
 	public:
 		MPQFile(std::string name, char* data, long size);
+		~MPQFile();
 		virtual bool parse();
 	protected:
 		MPQFile();
 		std::string readString();
 		Logger& _logger = Logger::get("Extractor");
 		std::string _name;
+		char* _data;
 		BinaryReader* _buffer;
 		long _size;
 };

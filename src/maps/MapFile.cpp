@@ -43,7 +43,7 @@ MapFile::MapFile(unsigned int mapId, unsigned int x, unsigned int y) : _mapId(ma
 
 MapFile::~MapFile()
 {
-
+    
 }
 
 bool MapFile::save(std::string path)

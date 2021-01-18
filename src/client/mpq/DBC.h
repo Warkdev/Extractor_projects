@@ -47,5 +47,6 @@ class DBC : public MPQFile
 			unsigned int recordSize; // sum (sizeof (field_type_i)) | 0 <= i < field_count. field_type_i is NOT defined in the files.
 			unsigned int stringBlockSize;
 		} _header;
+		std::vector<char*> _records;
 		unsigned long _offsetString;
 };

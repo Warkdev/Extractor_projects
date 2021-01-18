@@ -34,12 +34,18 @@ DBC::DBC(std::string name, char* data, long size)
 	_name = name;
 	_size = size;
 	MemoryInputStream* stream = new MemoryInputStream(data, _size);
+	_data = data;
 	_buffer = new BinaryReader(*stream);
 	_offsetString = 0;
 }
 
 DBC::~DBC()
 {
+	for (auto it = _records.begin(); it < _records.end(); ++it)
+	{
+		delete *it;
+	}
+	delete _data;
 	delete _buffer;
 }
 
@@ -88,6 +94,7 @@ BinaryReader* DBC::getRecord(int idx)
 
 	// Let's move to the beginning of the record.
 	char* record = new char[_header.recordSize];
+	_records.push_back(record);
 	_buffer->stream().seekg(20 + (idx * static_cast<unsigned __int64>(_header.recordSize)), std::ios::beg);
 
 	_buffer->readRaw(record, _header.recordSize);

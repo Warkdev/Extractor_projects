@@ -31,7 +31,9 @@ void MPQManager::load(std::vector<std::string> files)
 	{
 		Path path(*it);
 		MPQArchive* mpq = new MPQArchive(path);
+		_archives.push_back(mpq);
 		std::vector<std::string> filesList = mpq->getFilesList();
+		int count = 0;
 		for (auto itFiles = filesList.begin(); itFiles != filesList.end(); ++itFiles)
 		{
 			_logger.debug("Handling file: %s", *itFiles);
@@ -43,7 +45,12 @@ void MPQManager::load(std::vector<std::string> files)
 				{
 					_dbcs.push_back(*itFiles);
 				}
+				count++;
 			}
+		}
+		if (!count)
+		{
+			_logger.information("No newer files loaded from %s", *it);
 		}
 		_logger.information("Loaded MPQ: %s", *it);
 	}

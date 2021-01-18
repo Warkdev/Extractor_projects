@@ -41,9 +41,9 @@ class MPQManager
 
 		~MPQManager()
 		{
-			for (auto it = _mapFiles.begin(); it != _mapFiles.end(); ++it)
+			for (auto it = _archives.begin(); it != _archives.end(); ++it)
 			{
-				delete it->second;
+				delete *it;
 			}
 		}
 
@@ -58,6 +58,7 @@ class MPQManager
 	protected:
 		Logger& _logger = Logger::get("Extractor");
 		const std::string PREFIX_DBC = "DBFilesClient\\";
+		std::vector<MPQArchive*> _archives;
 		std::unordered_map<std::string, MPQArchive*> _mapFiles; // Maintain a list of files contained in every MPQ and a pointer into which MPQArchive holds it.
 		std::vector<std::string> _dbcs;
 };

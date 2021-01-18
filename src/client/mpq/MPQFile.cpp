@@ -37,6 +37,11 @@ MPQFile::MPQFile(std::string name, char* data, long size) : _name(name),  _size(
 {
 	MemoryInputStream* stream = new MemoryInputStream(data, _size);
 	_buffer = new BinaryReader(*stream);
+	_data = data;
+}
+
+MPQFile::~MPQFile()
+{
 }
 
 bool MPQFile::parse()
