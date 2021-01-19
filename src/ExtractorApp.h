@@ -44,7 +44,7 @@ using Poco::Util::OptionCallback;
 class ExtractorApp: public Application
 {
 public:
-	ExtractorApp(): _helpRequested(false), _extractMaps(true), _extractDbcs(true)
+	ExtractorApp(): _helpRequested(false), _extractMaps(true), _extractDbcs(true), _generateVmaps(true)
 	{
 		setUnixOptions(true);
 		_clientPath = ".";
@@ -71,6 +71,8 @@ protected:
 	
 	void handleExtractDbc(const std::string& name, const std::string& value);
 
+	void handleGenerateVmap(const std::string& name, const std::string& value);
+
 	void handleClientPath(const std::string& name, const std::string& value);
 
 	void handleOutputPath(const std::string& name, const std::string& value);
@@ -91,6 +93,7 @@ private:
 	bool _helpRequested;
 	bool _extractMaps;
 	bool _extractDbcs;
+	bool _generateVmaps;
 	std::string _clientPath;
 	std::string _outputPath;
 	Version _version;

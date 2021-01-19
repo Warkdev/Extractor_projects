@@ -21,47 +21,19 @@
  * World of Warcraft, and all World of Warcraft or Warcraft art, images,
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
-#ifndef MPQMANAGER_H
-#define MPQMANAGER_H
 
-#include <string>
-#include <unordered_map>
-#include "Poco/Logger.h"
-#include "MPQArchive.h"
-#include "mpq/MPQFile.h"
+#include "M2.h"
 
-using Poco::Logger;
-
-class MPQManager
+M2::M2(std::string name, unsigned char* data, long size) {
+	_name = name;
+	_data = data;
+	size = size;
+}
+M2::~M2()
 {
-	public:
-		MPQManager()
-		{
-		}
-
-		~MPQManager()
-		{
-			for (auto it = _archives.begin(); it != _archives.end(); ++it)
-			{
-				delete *it;
-			}
-		}
-
-		void load(std::vector<std::string> files);
-
-		std::vector<std::string> getDBCList();
-		std::vector<std::string> getWMOList();
-
-		bool extractFile(std::string file, std::string path);
-
-		MPQFile* getFile(std::string file, Version version);
-
-	protected:
-		Logger& _logger = Logger::get("Extractor");
-		std::vector<MPQArchive*> _archives;
-		std::unordered_map<std::string, MPQArchive*> _mapFiles; // Maintain a list of files contained in every MPQ and a pointer into which MPQArchive holds it.
-		std::vector<std::string> _dbcs;
-		std::vector<std::string> _wmos;
-};
-
-#endif // !EXTRACTOR_H
+	delete _data;
+}
+bool M2::parse() 
+{
+	return true;
+}

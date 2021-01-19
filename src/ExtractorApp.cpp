@@ -108,6 +108,14 @@ void ExtractorApp::defineOptions(OptionSet& options)
 			.callback(OptionCallback<ExtractorApp>(this, &ExtractorApp::handleExtractDbc)));
 
 	options.addOption(
+		Option("generate-vmap", "v", "Generate Vmaps from the game archives")
+		.required(false)
+		.repeatable(false)
+		.argument("<0|1>")
+		.validator(new IntValidator(0, 1))
+		.callback(OptionCallback<ExtractorApp>(this, &ExtractorApp::handleGenerateVmap)));
+
+	options.addOption(
 		Option("client-path", "c", "Indicates the game folder location")
 			.required(false)
 			.repeatable(false)
@@ -161,6 +169,14 @@ void ExtractorApp::handleOutputPath(const std::string& name, const std::string& 
 	}
 }
 
+void ExtractorApp::handleGenerateVmap(const std::string& name, const std::string& value)
+{
+	if (!std::stoi(value))
+	{
+		_generateVmaps = false;
+	}
+}
+
 void ExtractorApp::displayHelp()
 {
 	HelpFormatter helpFormatter(options());
@@ -206,6 +222,11 @@ void ExtractorApp::printSummary()
 	logger().information("----- Map extractor arguments -----");
 	logger().information("Extract Maps: %s", std::string(_extractMaps ? "true" : "false"));
 	logger().information("Extract DBCs: %s", std::string(_extractDbcs ? "true" : "false"));
+	logger().information("----- VMap generator arguments ----");
+	logger().information("Generate VMaps: %s", std::string(_generateVmaps ? "true" : "false"));
+	logger().information("");
+	logger().information("");
+
 }
 
 void ExtractorApp::detectBuild()
@@ -246,8 +267,8 @@ void ExtractorApp::extractData()
 	{
 		_extractor->exportDBC(_outputPath);
 	}
-	if (_extractMaps)
+	if (_extractMaps || _generateVmaps)
 	{
-		_extractor->exportMaps(_outputPath);
+		_extractor->extract(_outputPath, _extractMaps, _generateVmaps);
 	}
 }

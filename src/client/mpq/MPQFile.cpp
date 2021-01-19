@@ -45,3 +45,28 @@ bool MPQFile::parse()
 	_logger.information("Parsing MPQFile");
 	return false;
 }
+
+bool MPQFile::checkHeader(char magic[4], std::string expected)
+{
+	std::string temp(magic, 4);
+
+	if (temp != expected)
+	{
+		_logger.error("Expected header %s not found", expected);
+		return false;
+	}
+
+	return true;
+}
+
+bool MPQFile::checkOptionalHeader(char magic[4], std::string expected)
+{
+	std::string temp(magic, 4);
+
+	if (temp != expected)
+	{
+		return false;
+	}
+
+	return true;
+}

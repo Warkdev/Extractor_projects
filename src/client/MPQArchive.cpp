@@ -29,6 +29,8 @@
 #include "mpq/DBC.h"
 #include "mpq/WDT.h"
 #include "mpq/ADTV1.h"
+#include "mpq/WMOV1.h"
+#include "mpq/M2.h"
 
 void MPQArchive::open()
 {
@@ -135,7 +137,7 @@ MPQFile* MPQArchive::getFile(std::string file, Version version)
     }
 
     SFileCloseFile(handle);
-    
+
     if (Poco::endsWith(file, EXT_DBC))
     {
         return new DBC(file, buffer, size);
@@ -152,6 +154,19 @@ MPQFile* MPQArchive::getFile(std::string file, Version version)
                 return new ADTV1(file, buffer, size);
                 break;
         }
+    }
+    else if (Poco::endsWith(file, EXT_WMO))
+    {
+        switch (version)
+        {
+            case Version::CLIENT_CLASSIC:
+                return new WMOV1(file, buffer, size);
+                break;
+        }
+    }
+    else if (Poco::endsWith(file, EXT_M2) || Poco::endsWith(file, EXT_MDX))
+    {
+        return new M2(file, buffer, size);
     }
 
     return new MPQFile(file, buffer, size);

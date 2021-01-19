@@ -38,6 +38,9 @@ class MPQFile
 		virtual bool parse();
 	protected:
 		MPQFile();
+		bool checkHeader(char magic[4], std::string expected);
+		bool checkOptionalHeader(char magic[4], std::string expected);
+
 		Logger& _logger = Logger::get("Extractor");
 		std::string _name;
 		unsigned char* _data;

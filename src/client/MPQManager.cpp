@@ -23,10 +23,13 @@
  */
 
 #include "MPQManager.h"
+#include "Poco/String.h"
 
 void MPQManager::load(std::vector<std::string> files)
 {
 	_logger.information("Loading list of MPQ's");
+	std::string temp;
+	int digitCount;
 	for (auto it = files.rbegin(); it != files.rend(); ++it)
 	{
 		Path path(*it);
@@ -41,9 +44,30 @@ void MPQManager::load(std::vector<std::string> files)
 			{ 
 				// Add file in our map if it's not there already.
 				_mapFiles.insert(make_pair(*itFiles, mpq));
-				if (((std::string)*itFiles).rfind(PREFIX_DBC, 0) == 0)
+				if (Poco::endsWith(*itFiles, mpq->EXT_DBC))
 				{
 					_dbcs.push_back(*itFiles);
+				}
+				if (Poco::endsWith(*itFiles, mpq->EXT_WMO))
+				{
+					// We've a WMO, let's check if that's a root one and add it to our list if that's the case.
+					digitCount = 0;
+					temp.assign((*itFiles).substr(0, (*itFiles).find_last_of(".")));
+					reverse(temp.begin(), temp.end());
+					for (int i = 0; i < 3; i++)
+					{
+						if (!isdigit(temp[i]))
+						{
+							i = 3;
+							continue;
+						}
+						digitCount++;
+					}
+
+					if (digitCount < 3)
+					{
+						_wmos.push_back(*itFiles);
+					}
 				}
 				count++;
 			}
@@ -56,11 +80,17 @@ void MPQManager::load(std::vector<std::string> files)
 	}
 	_logger.information("Total MPQ files loaded: %z", _mapFiles.size());
 	_logger.information("Total loaded DBC: %z", _dbcs.size());
+	_logger.information("Total loaded WMO: %z", _wmos.size());
 }
 
 std::vector<std::string> MPQManager::getDBCList()
 {
 	return _dbcs;
+}
+
+std::vector<std::string> MPQManager::getWMOList()
+{
+	return _wmos;
 }
 
 bool MPQManager::extractFile(std::string file, std::string path)

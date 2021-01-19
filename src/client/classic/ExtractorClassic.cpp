@@ -25,12 +25,19 @@
 #include "ExtractorClassic.h"
 #include "Poco/Path.h"
 #include "Poco/File.h"
+#include "Poco/String.h"
+#include "Poco/MD5Engine.h"
+#include "Poco/DigestStream.h"
 #include "../../maps/MapFile.h"
 #include "../mpq/WDT.h"
 #include "../mpq/ADTV1.h"
+#include "../mpq/WMOV1.h"
 
 using Poco::Path;
 using Poco::File;
+using Poco::MD5Engine;
+using Poco::DigestOutputStream;
+using Poco::DigestEngine;
 
 void ExtractorClassic::init(std::string clientPath)
 {
@@ -47,6 +54,25 @@ void ExtractorClassic::init(std::string clientPath)
 	_version = Version::CLIENT_CLASSIC;
 }
 
+void ExtractorClassic::extract(std::string outputPath, bool exportMap, bool generateVmaps)
+{
+
+    // For Classic, we only need Maps and AreaTable data.
+    readMaps();
+    readAreaTable();
+
+    if (exportMap)
+    {
+        exportMaps(outputPath);
+    }
+
+    if (generateVmaps)
+    {
+        readLiquidType();
+        exportWMOs(outputPath);
+    }
+}
+
 void ExtractorClassic::exportMaps(std::string outputPath)
 {
 	_logger.information("Extracting Maps..");
@@ -54,9 +80,6 @@ void ExtractorClassic::exportMaps(std::string outputPath)
 	File file(path);
 	file.createDirectories();
 
-	// For Classic, we only need Maps and AreaTable data.
-	readMaps();
-	readAreaTable();
 	char wdtFile[1024];
 	char adtFile[1024];
 
@@ -76,7 +99,7 @@ void ExtractorClassic::exportMaps(std::string outputPath)
 		WDT* wdt = (WDT*) _mpqManager->getFile(std::string(wdtFile), _version);
 		if (!wdt)
 		{
-			_logger.warning("WDT file does not exist, warning can be safely ignored by not map info will be generated");
+			_logger.warning("WDT file does not exist, warning can be safely ignored but no map info will be generated");
 			delete wdt;
 			continue;
 		}
@@ -535,4 +558,67 @@ void ExtractorClassic::packData(MapFile* map, bool allowFloatToInt, float floatH
 
     // Then, pack holes data.
     packHoles(map);
+}
+
+void ExtractorClassic::exportWMOs(std::string outputPath)
+{
+    _logger.information("Extracting WMOs..");
+    bool cacheToDisk = _config->getBool(PROP_VMAP_CACHE_TO_DISK);
+    Path path(outputPath + PATH_WMOS);
+    File file(path);
+
+    if (cacheToDisk)
+    {
+        file.createDirectories();
+    }
+
+    std::vector<std::string> wmos = _mpqManager->getWMOList();
+    File wmoFile;
+    Path temp;
+    std::string flatName;
+    std::string directory;
+    std::string hash;
+    MD5Engine engine;
+    DigestOutputStream ds(engine);
+
+    for (auto it = wmos.begin(); it < wmos.end(); ++it)
+    {
+        _logger.debug("Extracting wmo %s", *it);
+        directory = "";
+        temp.assign(Poco::toLower(*it), Path::Style::PATH_WINDOWS); // Force path to interpret it with '\' as separator.
+        for (int i = 0; i < temp.depth(); i++) {
+            directory.append(temp.directory(i));
+        }
+        ds << directory;
+        hash = DigestEngine::digestToHex(engine.digest());
+        ds.clear();
+        WMOV1* wmo = (WMOV1*)_mpqManager->getFile(*it, _version);
+
+        if (!wmo)
+        {
+            _logger.warning("WMO file does not exist, warning can be safely ignored but no vmap info will be generated");
+            continue;
+        }
+
+        if (!wmo->parse())
+        {
+            _logger.error("Error while parsing the WMO file %s ", *it);
+            delete wmo;
+            continue;
+        }
+
+        if (cacheToDisk)
+        {
+            wmoFile = path.toString() + "/" + hash + "-" + temp.getFileName();
+            wmoFile.createFile();
+        }
+
+        delete wmo;
+    }
+
+    ds.close();
+    if (cacheToDisk)
+    {
+        file.remove(true);
+    }
 }

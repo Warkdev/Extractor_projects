@@ -23,9 +23,6 @@
  */
 
 #include "DBC.h"
-#include "Poco/BinaryReader.h"
-
-using Poco::BinaryReader;
 
 DBC::DBC(std::string name, unsigned char* data, long size)
 {

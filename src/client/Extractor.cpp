@@ -61,7 +61,17 @@ void Extractor::exportDBC(std::string outputPath)
 	_logger.information("DBC Extraction Summary: %i / %z", count, dbcList.size());
 }
 
+void Extractor::extract(std::string outputPath, bool exportMap, bool generateVmaps)
+{
+	_logger.information("You should not end up here");
+}
+
 void Extractor::exportMaps(std::string outputPath)
+{
+	_logger.information("You should not end up here");
+}
+
+void Extractor::exportWMOs(std::string outputPath)
 {
 	_logger.information("You should not end up here");
 }

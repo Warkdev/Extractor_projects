@@ -23,11 +23,6 @@
  */
 
 #include "WDT.h"
-#include "Poco/BinaryReader.h"
-#include "Poco/MemoryStream.h"
-
-using Poco::BinaryReader;
-using Poco::MemoryInputStream;
 
 WDT::WDT(std::string name, unsigned char* data, long size)
 {
