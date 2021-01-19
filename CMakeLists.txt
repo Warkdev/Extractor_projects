@@ -80,8 +80,7 @@ else()
 endif()
 
 # Used for install targets
-set(TOOLS_DIR "tools")
-set(EXTRACTOR_BINARIES_DIR "${CMAKE_SOURCE_DIR}/src/tools/Extractor_Binaries")
+set(EXTRACTOR_BINARIES_DIR "${CMAKE_SOURCE_DIR}/Extractor_Binaries")
 
 # External Libs
 ## POCO
@@ -151,12 +150,19 @@ target_link_libraries(extractor
 
 install(
     TARGETS extractor
-    DESTINATION "${BIN_DIR}/${TOOLS_DIR}"
+    DESTINATION "${BIN_DIR}/"
 )
 
 if(WIN32 AND MSVC)
     install(
         FILES $<TARGET_PDB_FILE:extractor>
-        DESTINATION ${BIN_DIR}/${TOOLS_DIR}
+        DESTINATION ${BIN_DIR}/
         OPTIONAL)
 endif()
+
+install(
+  DIRECTORY
+    "${EXTRACTOR_BINARIES_DIR}/"
+  DESTINATION
+    "${BIN_DIR}"
+    )
