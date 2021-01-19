@@ -23,6 +23,18 @@
  */
 
 
+#include "Poco/AutoPtr.h"
+#include "Poco/PatternFormatter.h"
+#include "Poco/FormattingChannel.h"
+#include "Poco/Logger.h"
+#ifdef _WIN32
+#include "Poco/WindowsConsoleChannel.h"
+#endif
+
+#ifdef __linux__
+#include "Poco/ConsoleChannel.h"
+#endif
+
 #include "ExtractorApp.h"
 #include "Poco/Util/IntValidator.h"
 #include "client/ClientHelper.h"
@@ -39,14 +51,22 @@ using Poco::Util::AbstractConfiguration;
 using Poco::Util::OptionCallback;
 using Poco::Util::IntValidator;
 using Poco::AutoPtr;
-
+using Poco::Message;
+using Poco::Logger;
+using Poco::PatternFormatter;
+using Poco::FormattingChannel;
+#ifdef _WIN32
+using Poco::WindowsConsoleChannel;
+#endif
+#ifdef __linux__
+using Poco::ConsoleChannel;
+#endif
 
 void ExtractorApp::initialize(Application& self)
 {
 	int loaded = loadConfiguration(); // load default configuration files, if present
 	Application::initialize(self);
 	// add your own initialization code here
-	_logger.debug("Loaded %i configuration file", loaded);
 }
 
 void ExtractorApp::uninitialize()
@@ -100,14 +120,6 @@ void ExtractorApp::defineOptions(OptionSet& options)
 			.repeatable(false)
 			.argument("path")
 			.callback(OptionCallback<ExtractorApp>(this, &ExtractorApp::handleOutputPath)));
-
-	options.addOption(
-		Option("flat-map", "f", "Store height information as integers, reducing map size but also accuracy")
-			.required(false)
-			.repeatable(false)
-			.argument("<0|1>")
-			.validator(new IntValidator(0, 1))
-			.callback(OptionCallback<ExtractorApp>(this, &ExtractorApp::handleFlatMap)));
 }
 
 void ExtractorApp::handleHelp(const std::string& name, const std::string& value)
@@ -130,14 +142,6 @@ void ExtractorApp::handleExtractDbc(const std::string& name, const std::string& 
 	if (!std::stoi(value))
 	{
 		_extractDbcs = false;
-	}
-}
-
-void ExtractorApp::handleFlatMap(const std::string& name, const std::string& value)
-{
-	if (!std::stoi(value))
-	{
-		_flatMap = false;
 	}
 }
 
@@ -181,34 +185,33 @@ int ExtractorApp::main(const ArgVec& args)
 
 void ExtractorApp::printWebsiteBanner()
 {
-	_logger.information("");
-	_logger.information("        __  __      _  _  ___  ___  ___      ");
-	_logger.information("       |  \\/  |__ _| \\| |/ __|/ _ \\/ __|  ");
-	_logger.information("       | |\\/| / _` | .` | (_ | (_) \\__ \\  ");
-	_logger.information("       |_|  |_\\__,_|_|\\_|\\___|\\___/|___/ ");
-	_logger.information("");
-	_logger.information("  ________________________________________________");
-	_logger.information("    For help and support please visit:            ");
-	_logger.information("    Website / Forum / Wiki: https://getmangos.eu  ");
-	_logger.information("  ________________________________________________");
+	logger().information("");
+	logger().information("        __  __      _  _  ___  ___  ___      ");
+	logger().information("       |  \\/  |__ _| \\| |/ __|/ _ \\/ __|  ");
+	logger().information("       | |\\/| / _` | .` | (_ | (_) \\__ \\  ");
+	logger().information("       |_|  |_\\__,_|_|\\_|\\___|\\___/|___/ ");
+	logger().information("");
+	logger().information("  ________________________________________________");
+	logger().information("    For help and support please visit:            ");
+	logger().information("    Website / Forum / Wiki: https://getmangos.eu  ");
+	logger().information("  ________________________________________________");
 }
 
 void ExtractorApp::printSummary()
 {
-	_logger.information("------ Extractor Options ------");
-	_logger.information("----- General settings -----");
-	_logger.information("Client Path: %s", _clientPath);
-	_logger.information("Output Path: %s", _outputPath);
-	_logger.information("----- Map extractor arguments -----");
-	_logger.information("Extract Maps: %s", std::string(_extractMaps ? "true" : "false"));
-	_logger.information("Extract DBCs: %s", std::string(_extractDbcs ? "true" : "false"));
-	_logger.information("Flatten Maps: %s", std::string(_flatMap ? "true" : "false"));
+	logger().information("------ Extractor Options ------");
+	logger().information("----- General settings -----");
+	logger().information("Client Path: %s", _clientPath);
+	logger().information("Output Path: %s", _outputPath);
+	logger().information("----- Map extractor arguments -----");
+	logger().information("Extract Maps: %s", std::string(_extractMaps ? "true" : "false"));
+	logger().information("Extract DBCs: %s", std::string(_extractDbcs ? "true" : "false"));
 }
 
 void ExtractorApp::detectBuild()
 {
 	_version = ClientHelper::getBuildVersion(_clientPath);
-	_logger.information("Detected Client Build: %s", ClientHelper::getVersionName(_version));
+	logger().information("Detected Client Build: %s", ClientHelper::getVersionName(_version));
 	// Handling versions
 	switch (_version)
 	{
@@ -218,7 +221,7 @@ void ExtractorApp::detectBuild()
 		case Version::CLIENT_LEGION:
 		case Version::CLIENT_BFA:
 		case Version::CLIENT_SHADOWLANDS:
-			_logger.error("This build is not supported by this extractor");
+			logger().error("This build is not supported by this extractor");
 		case Version::CLIENT_CLASSIC:
 			_extractor = new ExtractorClassic(&config());
 			break;

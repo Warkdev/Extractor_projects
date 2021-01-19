@@ -27,55 +27,57 @@
 #include <string>
 #include "Poco/Logger.h"
 #include "MPQFile.h"
-#include "../../geometry/CAaSphere.h"
-#include "../../geometry/Point3D.h"
 
 using Poco::Logger;
 
-struct MCNK {
-	struct MCVT {
-		std::string magic;
-		unsigned int size;
-		float points[145];
-	};
+struct MCVT {
+	char magic[4];
+	unsigned int size;
+	float points[145];
+};
 
-	struct MCNR {
-		std::string magic;
-		unsigned int size;
-		Point3D points[145];
-	};
+struct MCNR {
+	char magic[4];
+	unsigned int size;
+	struct {
+		float x;
+		float y;
+		float z;
+	} position[145];
+};
 
+struct MCLQ {
 	/** Liquid type information*/
 	const static unsigned int LIQUID_DATA_LENGTH = 9;
 	const static unsigned int LIQUID_FLAG_LENGTH = 8;
 
-	struct MCLQ {
-		struct SWFlowv {
-			CAaSphere sphere;
-			Point3D direction;
-			float velocity;
-			float amplitude;
-			float frequency;
-		};
+	char magic[4];
+	unsigned int size;
 
+	struct MCLQLayer {
 		float minHeight;
 		float maxHeight;
-		unsigned int lights[LIQUID_DATA_LENGTH * LIQUID_DATA_LENGTH];
-		float height[LIQUID_DATA_LENGTH * LIQUID_DATA_LENGTH];
-		unsigned short flags[LIQUID_FLAG_LENGTH * LIQUID_FLAG_LENGTH];
 
-		unsigned int nFlowvs;
-		SWFlowv* flowvs;
-	};
+		struct {
+			unsigned int lights;
+			float height;
+		} data[LIQUID_DATA_LENGTH][LIQUID_DATA_LENGTH];
 
-	struct MCLY {
-		unsigned int textureId;
-		unsigned int flags;
-		unsigned int offsetinMCAL;
-		unsigned int effectId;
-	};
 
-	std::string magic;
+		unsigned char flags[LIQUID_FLAG_LENGTH][LIQUID_FLAG_LENGTH];
+		unsigned char unknown[84];
+	} layers[2];
+};
+
+struct MCLY {
+	unsigned int textureId;
+	unsigned int flags;
+	unsigned int offsetinMCAL;
+	unsigned int effectId;
+};
+
+struct MCNK {
+	char magic[4];
 	unsigned int size;
 	unsigned int flags;
 	unsigned int indexX;
@@ -100,13 +102,9 @@ struct MCNK {
 	unsigned int nSndEmitters;
 	unsigned int offsetMCLQ;
 	unsigned int sizeLiquid;
-	Point3D position;
+	float position[3];
 	unsigned int offsetMCCV;
 	unsigned int offsetMCLV;
-	MCVT vertices;
-	MCNR normals;
-	MCLQ* listLiquids;
-	//MCLY textureLayers[4];
 	unsigned int* refList;
 };
 
@@ -120,33 +118,28 @@ class ADTV1 : public MPQFile
 		static const unsigned int SIZE_TILE_HEIGHTMAP = 144;
 		static const unsigned int CHUNK_TILE_MAP_LENGTH = 8;
 		static const unsigned int SIZE_ADT_GRID = 128;
-		ADTV1(std::string name, char* data, long size);
+
+		ADTV1(std::string name, unsigned char* data, long size);
 		~ADTV1();
 		bool parse();
 		MCNK* getCell(unsigned int x, unsigned int y);
-		unsigned int cellsSize();
+		MCVT* getVertices(MCNK* chunk);
+		MCLQ* getLiquid(MCNK* chunk);
 		bool hasLiquid(MCNK* chunk);
-		static bool hasLiquid(MCNK::MCLQ* liquid, unsigned int x, unsigned int y);
-		static bool hasNoLiquid(MCNK::MCLQ* liquid, unsigned int x, unsigned int y);
-		static bool isDarkWater(MCNK::MCLQ* liquid, unsigned int x, unsigned int y);
-		static bool isRiver(MCNK* chunk);
-		static bool isOcean(MCNK* chunk);
-		static bool isMagma(MCNK* chunk);
-		static bool isSlime(MCNK* chunk);
+		bool hasLiquid(MCLQ::MCLQLayer* liquid, unsigned int x, unsigned int y);
+		bool hasNoLiquid(MCLQ::MCLQLayer* liquid, unsigned int x, unsigned int y);
+		bool isDarkWater(MCLQ::MCLQLayer* liquid, unsigned int x, unsigned int y);
+		bool isRiver(MCNK* chunk);
+		bool isOcean(MCNK* chunk);
+		bool isMagma(MCNK* chunk);
+		bool isSlime(MCNK* chunk);
 		bool hasNoLiquid(MCNK* chunk);
+		std::string getName();
 	private:
-		bool readMCIN();
-
 		static const unsigned int GLOBAL_OFFSET = 20;
 		static const unsigned int CHUNK_TILE_HEIGHTMAP_LENGTH = 9;
 		/** MCIN Chunk for MCNK information in the ADT File. */
 		const std::string HEADER_MCIN = "NICM";
-		struct MCIN {
-			unsigned int offsetMCNK;
-			unsigned int size;
-			unsigned int flags;
-			unsigned int asyncId;
-		};
 		/** MCNK Chunk with detailed chunk information in the ADT File. */
 		const std::string HEADER_MCNK = "KNCM";
 		/** MODF Chunk for WMO placement, if any. */
@@ -164,15 +157,15 @@ class ADTV1 : public MPQFile
 		};
 		/** File version - REVM chunk */
 		const std::string HEADER_MVER = "REVM";
-		struct {
-			std::string magic;
+		struct MVER {
+			char magic[4];
 			unsigned int size;
 			unsigned int version;
-		} _version;
+		} * _version;
 		/** ADT Header - RDHM chunk */
 		const std::string HEADER_MHDR = "RDHM";
-		struct {
-			std::string magic;
+		struct MHDR {
+			char magic[4];
 			unsigned int size;
 			unsigned long flags;
 			unsigned int offsetMCIN;
@@ -183,10 +176,19 @@ class ADTV1 : public MPQFile
 			unsigned int offsetMWID;
 			unsigned int offsetMDDF;
 			unsigned int offsetMODF;
-		} _header;
+		} * _header;
 		/**	ADT - NICM chunk */
-		unsigned int _cells;
-		MCIN* _chunkInfos;
+		//unsigned int _cells;
+		struct MCIN {
+			char magic[4];
+			unsigned int size;
+			struct {
+				unsigned int offsetMCNK;
+				unsigned int chunkSize;
+				unsigned int flags;
+				unsigned int asyncId;
+			} cells[SIZE_TILE_MAP][SIZE_TILE_MAP];
+		} *_chunkInfos;
 
 		/** MCNK headers. */
 		const std::string HEADER_MCVT = "TVCM";

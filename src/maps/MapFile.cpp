@@ -39,6 +39,7 @@ MapFile::MapFile(unsigned int mapId, unsigned int x, unsigned int y) : _mapId(ma
     memset(liquidFlags, 0, sizeof(liquidFlags));
     memset(liquidEntry, 0, sizeof(liquidEntry));
     memset(holes, 0, sizeof(holes));
+    fullArea = false;
 }
 
 MapFile::~MapFile()

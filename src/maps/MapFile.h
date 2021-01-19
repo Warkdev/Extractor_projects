@@ -103,7 +103,6 @@ class MapFile {
 		unsigned char liquidFlags[ADTV1::SIZE_TILE_MAP][ADTV1::SIZE_TILE_MAP];
 		unsigned short liquidEntry[ADTV1::SIZE_TILE_MAP][ADTV1::SIZE_TILE_MAP];
 		float liquidHeight[ADTV1::SIZE_ADT_GRID + 1][ADTV1::SIZE_ADT_GRID + 1];
-		unsigned int liquidLight[ADTV1::SIZE_ADT_GRID + 1][ADTV1::SIZE_ADT_GRID + 1];
 		bool fullLiquidType;
 		/** Holes flags */
 		unsigned short holes[ADTV1::SIZE_TILE_MAP][ADTV1::SIZE_TILE_MAP];

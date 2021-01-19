@@ -29,110 +29,86 @@
 using Poco::BinaryReader;
 using Poco::MemoryInputStream;
 
-WDT::WDT(std::string name, char* data, long size)
+WDT::WDT(std::string name, unsigned char* data, long size)
 {
 	_name = name;
 	_size = size;
-	MemoryInputStream* stream = new MemoryInputStream(data, _size);
-	_buffer = new BinaryReader(*stream);
-	_main.areas = new AreaInfo[static_cast<unsigned __int64>(MAP_TILE_SIZE) * MAP_TILE_SIZE];
 	_data = data;
 }
 
 WDT::~WDT()
 {
 	delete _data;
-	delete _main.areas;
-	delete _buffer;
 }
 
 bool WDT::parse()
 {
 	_logger.information("Parsing WDT file %s", _name);
 
-	_buffer->readRaw(4, _version.magic);
+	unsigned int offset = 0;
 
-	if (_version.magic != HEADER_MVER)
+	_version = (Version*) (_data);
+
+	std::string magic(_version->magic, 4);
+
+	if (magic != HEADER_MVER)
 	{
 		_logger.error("Expected header REVM not found");
 		return false;
 	}
 
-	*_buffer >> _version.size;
-	*_buffer >> _version.version;
-
-	if (_version.version != 18)
+	if (_version->version != 18)
 	{
-		_logger.error("Expected file version 18, got %i", _version.version);
+		_logger.error("Expected file version 18, got %i", _version->version);
 		return false;
 	}
 
-	_buffer->readRaw(4, _header.magic);
+	offset = 8 + _version->size;
 
-	if (_header.magic != HEADER_MPHD)
+	_header = (Header*)(_data + offset);
+
+	magic = std::string(_header->magic, 4);
+
+	if (magic != HEADER_MPHD)
 	{
 		_logger.error("Expected header DHPM not found");
 		return false;
 	}
 
-	*_buffer >> _header.size;
-	*_buffer >> _header.flags;
-	// We skip the rest of the buffer section, should be always 0.
-	_buffer->stream().seekg(_header.size - sizeof(_header.flags), std::ios::cur);
+	offset += 8 + _header->size;
 
-	_buffer->readRaw(4, _main.magic);
+	_main = (Main*)(_data + offset);
+	
+	magic = std::string(_main->magic, 4);
 
-	if (_main.magic != HEADER_MAIN)
+	if (magic != HEADER_MAIN)
 	{
 		_logger.error("Expected header NIAM not found");
 		return false;
 	}
 
-	*_buffer >> _main.size;
-	for (int i = 0; i < MAP_TILE_SIZE * MAP_TILE_SIZE; i++)
-	{
-		*_buffer >> _main.areas[i].flags;
-		*_buffer >> _main.areas[i].asyncId;
-	}
+	offset += 8 + _main->size;
 
-	_buffer->readRaw(4, _wmo.magic);
+	_wmo = (MWMO*)(_data + offset);
 
-	if (_wmo.magic != HEADER_MWMO) 
+	magic = std::string(_wmo->magic, 4);
+
+	if (magic != HEADER_MWMO) 
 	{
 		_logger.error("Expected header OMWM not found");
 		return false;
 	}
 
-	*_buffer >> _wmo.size;
-
-	if (_header.flags & USE_GLOBAL_MAP_OBJ)
+	if (_header->flags & USE_GLOBAL_MAP_OBJ)
 	{
-		_wmo.name = readString();
-		_buffer->readRaw(4, _objDef.magic);
-		if (_objDef.magic != HEADER_MODF)
+		offset += 8 + _wmo->size;
+		_objDef = (MODF*)(_data + offset);
+		magic = std::string(_objDef->magic, 4);
+		if (magic != HEADER_MODF)
 		{
 			_logger.error("Expected header FDOM not found");
 			return false;
 		}
-		*_buffer >> _objDef.size;
-		*_buffer >> _objDef.placement.mwidEntry;
-		*_buffer >> _objDef.placement.uniqueId;
-		*_buffer >> _objDef.placement.position[0]; // Position X
-		*_buffer >> _objDef.placement.position[1]; // Position Y
-		*_buffer >> _objDef.placement.position[2]; // Position Z
-		*_buffer >> _objDef.placement.orientation[0]; // Orientation X
-		*_buffer >> _objDef.placement.orientation[1]; // Orientation Y
-		*_buffer >> _objDef.placement.orientation[2]; // Orientation Z
-		*_buffer >> _objDef.placement.upperExtents[0];
-		*_buffer >> _objDef.placement.upperExtents[1];
-		*_buffer >> _objDef.placement.upperExtents[2];
-		*_buffer >> _objDef.placement.lowerExtents[0];
-		*_buffer >> _objDef.placement.lowerExtents[1];
-		*_buffer >> _objDef.placement.lowerExtents[2];
-		*_buffer >> _objDef.placement.flags;
-		*_buffer >> _objDef.placement.doodadSet;
-		*_buffer >> _objDef.placement.nameSet;
-		*_buffer >> _objDef.placement.padding;
 	}
 
 	return true;
@@ -140,5 +116,5 @@ bool WDT::parse()
 
 bool WDT::hasADT(int x, int y)
 {
-	return _main.areas[x * MAP_TILE_SIZE + y].flags & HAS_ADT;
+	return _main->areaInfo[x][y].flags & HAS_ADT;
 }

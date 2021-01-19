@@ -27,58 +27,26 @@
 #include "Poco/Util/Option.h"
 #include "Poco/Util/OptionSet.h"
 #include "Poco/Util/HelpFormatter.h"
-#include "Poco/AutoPtr.h"
-#include "Poco/PatternFormatter.h"
-#include "Poco/FormattingChannel.h"
-#include "Poco/Logger.h"
+
 #include "client/Extractor.h"
 #include "client/Version.h"
 #include <iostream>
 #include <sstream>
 #include <string>
 
-#ifdef _WIN32
-#include "Poco/WindowsConsoleChannel.h"
-#endif
-
-#ifdef __linux__
-#include "Poco/ConsoleChannel.h"
-#endif
-
 using Poco::Util::Application;
 using Poco::Util::Option;
 using Poco::Util::OptionSet;
 using Poco::Util::HelpFormatter;
 using Poco::Util::OptionCallback;
-using Poco::Message;
-using Poco::Logger;
-using Poco::AutoPtr;
-using Poco::PatternFormatter;
-using Poco::FormattingChannel;
-#ifdef _WIN32
-using Poco::WindowsConsoleChannel;
-#endif
-#ifdef __linux__
-using Poco::ConsoleChannel;
-#endif
 
 
 class ExtractorApp: public Application
 {
 public:
-	ExtractorApp(): _helpRequested(false), _extractMaps(true), _extractDbcs(true), _flatMap(true)
+	ExtractorApp(): _helpRequested(false), _extractMaps(true), _extractDbcs(true)
 	{
 		setUnixOptions(true);
-		FormattingChannel* pFCConsole = new FormattingChannel(new PatternFormatter("%Y-%m-%d %H:%M:%S.%c [%p][%s] - %t"));
-#ifdef _WIN32
-		pFCConsole->setChannel(new WindowsConsoleChannel);
-#endif
-#ifdef __linux__
-		pFCConsole->setChannel(new ConsoleChannel);
-#endif
-		pFCConsole->open();
-		_logger.setChannel(pFCConsole);
-		_logger.setLevel(Message::PRIO_INFORMATION);
 		_clientPath = ".";
 		_outputPath = ".";
 	}
@@ -103,8 +71,6 @@ protected:
 	
 	void handleExtractDbc(const std::string& name, const std::string& value);
 
-	void handleFlatMap(const std::string& name, const std::string& value);
-
 	void handleClientPath(const std::string& name, const std::string& value);
 
 	void handleOutputPath(const std::string& name, const std::string& value);
@@ -122,13 +88,11 @@ protected:
 	void extractData();
 
 private:
-	Logger& _logger = Logger::get("Extractor");
 	bool _helpRequested;
 	bool _extractMaps;
 	bool _extractDbcs;
 	std::string _clientPath;
 	std::string _outputPath;
-	bool _flatMap;
 	Version _version;
 	Extractor* _extractor;
 };

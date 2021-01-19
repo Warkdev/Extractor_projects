@@ -32,7 +32,7 @@ class WDT : public MPQFile
 {
 	public:
 		const static int MAP_TILE_SIZE = 64;
-		WDT(std::string name, char* data, long size);
+		WDT(std::string name, unsigned char* data, long size);
 		~WDT();
 		bool parse();
 		bool hasADT(int x, int y);
@@ -53,58 +53,54 @@ class WDT : public MPQFile
 		enum WDTAreaInfoFlags {
 			HAS_ADT = 0x01
 		};
-		/** AreaInfo Struct */
-		struct AreaInfo {
-			int flags;
-			int asyncId;
-		};
 
-		/** MODF Chunk for WMO placement, if any. */
-		struct MODF {
-			unsigned int mwidEntry;
-			unsigned int uniqueId;
-			float position[3];
-			float orientation[3];
-			float upperExtents[3];
-			float lowerExtents[3];
-			unsigned short flags;
-			unsigned short doodadSet;
-			unsigned short nameSet;
-			unsigned short padding;
-		};
 		/** File version - REVM chunk */
 		const std::string HEADER_MVER = "REVM";
-		struct {
-			std::string magic;
+		struct Version {
+			char magic[4];
 			unsigned int size;
 			unsigned int version;
-		} _version;
+		} * _version;
 		/** WDT Header - DHPM chunk */
 		const std::string HEADER_MPHD = "DHPM";
-		struct {
-			std::string magic;
+		struct Header {
+			char magic[4];
 			unsigned int size;
 			unsigned int flags;
-		} _header;
+		} * _header;
 		/** WDT Main - NIAM chunk */
 		const std::string HEADER_MAIN = "NIAM";
-		struct {
-			std::string magic;
+		struct Main {
+			char magic[4];
 			unsigned int size;
-			AreaInfo* areas;
-		} _main;
+			/** AreaInfo Struct */
+			struct AreaInfo {
+				int flags;
+				int asyncId;
+			} areaInfo[64][64];
+		} * _main;
 		/** WDT World Model Object (if any) - OMWM chunk */
 		const std::string HEADER_MWMO = "OMWM";
-		struct {
-			std::string magic;
+		struct MWMO {
+			char magic[4];
 			unsigned int size;
-			std::string name;
-		} _wmo;
+		} * _wmo;
 		/** WDT WMO Placement - FDOM chunk */
 		const std::string HEADER_MODF = "FDOM";
-		struct {
-			std::string magic;
+		struct MODF {
+			char magic[4];
 			unsigned int size;
-			MODF placement;
-		} _objDef;
+			struct {
+				unsigned int mwidEntry;
+				unsigned int uniqueId;
+				float position[3];
+				float orientation[3];
+				float upperExtents[3];
+				float lowerExtents[3];
+				unsigned short flags;
+				unsigned short doodadSet;
+				unsigned short nameSet;
+				unsigned short padding;
+			} placement;
+		} * _objDef;
 };

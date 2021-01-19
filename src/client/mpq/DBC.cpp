@@ -24,102 +24,84 @@
 
 #include "DBC.h"
 #include "Poco/BinaryReader.h"
-#include "Poco/MemoryStream.h"
 
 using Poco::BinaryReader;
-using Poco::MemoryInputStream;
 
-DBC::DBC(std::string name, char* data, long size)
+DBC::DBC(std::string name, unsigned char* data, long size)
 {
 	_name = name;
 	_size = size;
-	MemoryInputStream* stream = new MemoryInputStream(data, _size);
 	_data = data;
-	_buffer = new BinaryReader(*stream);
 	_offsetString = 0;
 }
 
 DBC::~DBC()
 {
-	for (auto it = _records.begin(); it < _records.end(); ++it)
-	{
-		delete *it;
-	}
 	delete _data;
-	delete _buffer;
 }
 
 bool DBC::parse()
 {
 	_logger.information("Parsing DBC file %s", _name);
 
-	_buffer->readRaw(4, _header.magic);
+	_header = reinterpret_cast<Header*>(_data);
 
-	if (_header.magic != HEADER_WDBC)
+	std::string magic(_header->magic, 4);
+
+	if (magic != HEADER_WDBC)
 	{
 		_logger.error("The provided file is not a DBC file");
 		return false;
 	}
-	
-	*_buffer >> _header.recordCount >> _header.fieldCount >> _header.recordSize >> _header.stringBlockSize;
 
-	_logger.debug("DBC record_count: %u", _header.recordCount);
-	_logger.debug("DBC field_count: %u", _header.fieldCount);
-	_logger.debug("DBC record_size: %u", _header.recordSize);
-	_logger.debug("DBC string_block_size: %u", _header.stringBlockSize);
+	_logger.debug("DBC record_count: %u", _header->recordCount);
+	_logger.debug("DBC field_count: %u", _header->fieldCount);
+	_logger.debug("DBC record_size: %u", _header->recordSize);
+	_logger.debug("DBC string_block_size: %u", _header->stringBlockSize);
 
-	if (_header.fieldCount * 4 != _header.recordSize)
+	if (_header->fieldCount * 4 != _header->recordSize)
 	{
 		_logger.error("Field count and record size in DBC %s do not match.", _name);
 		return false;
 	}
 
-	_offsetString = 20 + (_header.recordCount * static_cast<unsigned __int64>(_header.recordSize));
+	_offsetString = 20 + (_header->recordCount * static_cast<unsigned __int64>(_header->recordSize));
 
 	return true;
 }
 
 int DBC::getRecordCount()
 {
-	return _header.recordCount;
+	return _header->recordCount;
 }
 
-BinaryReader* DBC::getRecord(int idx)
+unsigned char* DBC::getRecord(int idx)
 {
-	if (idx < 0 || idx > _header.recordCount)
+	if (idx < 0 || idx > _header->recordCount)
 	{
 		_logger.error("Trying to retrieve a record which does not exist");
 		return NULL;
 	}
 
-	// Let's move to the beginning of the record.
-	char* record = new char[_header.recordSize];
-	_records.push_back(record);
-	_buffer->stream().seekg(20 + (idx * static_cast<unsigned __int64>(_header.recordSize)), std::ios::beg);
-
-	_buffer->readRaw(record, _header.recordSize);
-	MemoryInputStream* stream = new MemoryInputStream(record, _header.recordSize);
-	return new BinaryReader(*stream);
+	return &_data[20 + (idx * _header->recordSize)];
 }
 
 std::string DBC::getString(int offset)
 {
 	std::string str;
-	char c;
+	unsigned int pos = _offsetString + offset;
 	bool complete = false;
 
-	// Let's move to the String Table.
-	_buffer->stream().seekg(_offsetString + static_cast<unsigned __int64>(offset), std::ios::beg);
-
 	// Then we read what's on there until we find a '0' terminating the string.
-	while (!complete && (_buffer->stream().read(&c,1)))
+	while (!complete)
 	{
-		if (c == '\0')
+		if (_data[pos] == '\0')
 		{
 			complete = true;
 		} else {
-			str.append(&c, 1);
+			str.push_back(_data[pos]);
 		}
+		pos++;
 	}
 	return str;
 }

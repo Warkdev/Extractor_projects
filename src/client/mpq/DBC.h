@@ -31,22 +31,22 @@ using Poco::Logger;
 class DBC : public MPQFile
 {
 	public:
-		DBC(std::string name, char* data, long size);
+		DBC(std::string name, unsigned char* data, long size);
 		~DBC();
+
 		virtual bool parse();
 		int getRecordCount();
-		BinaryReader* getRecord(int idx);
+		unsigned char* getRecord(int idx);
 		std::string getString(int offset);
 	private:
 		const std::string HEADER_WDBC = "WDBC";
 		/** DBC Header */
 		struct Header {
-			std::string magic; // always 'WDBC'
+			char magic[4]; // always 'WDBC'
 			unsigned int recordCount; // records per file
 			unsigned int fieldCount; // fields per record
 			unsigned int recordSize; // sum (sizeof (field_type_i)) | 0 <= i < field_count. field_type_i is NOT defined in the files.
 			unsigned int stringBlockSize;
-		} _header;
-		std::vector<char*> _records;
+		} * _header;
 		unsigned long _offsetString;
 };

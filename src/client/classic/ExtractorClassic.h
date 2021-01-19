@@ -40,10 +40,10 @@ class ExtractorClassic : public Extractor
 		virtual void init(std::string clientPath);
 		virtual void exportMaps(std::string outputPath);
 	protected:
-		bool convertADT(ADTV1* adt, MapFile* map);
+		bool convertADT(ADTV1* adt, MapFile* map, unsigned int maxAreaId, bool allowHeightLimit, bool allowFloatToInt, float floatHeightDeltaLimit, float floatLiquidDeltaLimit, float floatToByteLimit, float floatToShortLimit, float useMinHeight);
 		void handleAreas(MapFile* map, MCNK* cell, unsigned int i, unsigned int j, unsigned int maxAreaId);
-		void handleHeight(MapFile* map, MCNK* cell, unsigned int i, unsigned int j, bool allowHeightLimit, float useMinHeight);
-		void handleLiquid(MapFile* map, MCNK* cell, unsigned int i, unsigned int j);
+		void handleHeight(MapFile* map, ADTV1* adt, MCNK* cell, unsigned int i, unsigned int j, bool allowHeightLimit, float useMinHeight);
+		void handleLiquid(MapFile* map, ADTV1* adt, MCNK* cell, unsigned int i, unsigned int j);
 		void handleHoles(MapFile* map, MCNK* cell, unsigned int i, unsigned int j);
 		void packAreaData(MapFile* map);
 		void packHeight(MapFile* map, bool allowFloatToInt, float floatHeightDeltaLimit, float floatToByteLimit, float floatToShortLimit);

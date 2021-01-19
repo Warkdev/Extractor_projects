@@ -60,6 +60,15 @@ void ExtractorClassic::exportMaps(std::string outputPath)
 	char wdtFile[1024];
 	char adtFile[1024];
 
+    bool allowHeightLimit = _config->getBool(PROP_ALLOW_HEIGHT_LIMIT);
+    float useMinHeight = (float)_config->getDouble(PROP_USE_MIN_HEIGHT);
+    bool allowFloatToInt = _config->getBool(PROP_ALLOW_FLOAT_TO_INT);
+    float floatHeightDeltaTimit = (float)_config->getDouble(PROP_FLAT_HEIGHT_DELTA_LIMIT);
+    float floatLiquidDeltaTimit = (float)_config->getDouble(PROP_FLAT_LIQUID_DELTA_LIMIT);
+    float floatToByteLimit = (float)_config->getDouble(PROP_FLOAT_TO_BYTE_LIMIT);
+    float floatToShortLimit = (float)_config->getDouble(PROP_FLOAT_TO_SHORT_LIMIT);
+    unsigned int maxAreaId = _areas.rbegin()->first;
+
 	for (auto it = _maps.begin(); it != _maps.end(); it++)
 	{
 		_logger.information("Loading WDT file %s.wdt (%u)", it->second, it->first);
@@ -104,7 +113,7 @@ void ExtractorClassic::exportMaps(std::string outputPath)
 
 					MapFile map(it->first, x, y);
 
-					if (!convertADT(adt, &map))
+					if (!convertADT(adt, &map, maxAreaId, allowHeightLimit, allowFloatToInt, floatHeightDeltaTimit, floatLiquidDeltaTimit, floatToByteLimit, floatToShortLimit, useMinHeight))
 					{
 						_logger.error("Error while generating the map file");
 						delete adt;
@@ -127,21 +136,12 @@ void ExtractorClassic::exportMaps(std::string outputPath)
 	}
 }
 
-bool ExtractorClassic::convertADT(ADTV1* adt, MapFile* map)
+bool ExtractorClassic::convertADT(ADTV1* adt, MapFile* map, unsigned int maxAreaId, bool allowHeightLimit, bool allowFloatToInt, float floatHeightDeltaLimit, float floatLiquidDeltaLimit, float floatToByteLimit, float floatToShortLimit, float useMinHeight)
 {
-    unsigned int maxAreaId = _areas.rbegin()->first;
-    bool allowHeightLimit = _config->getBool(PROP_ALLOW_HEIGHT_LIMIT);
-    float useMinHeight = (float) _config->getDouble(PROP_USE_MIN_HEIGHT);
-    bool allowFlowToInt = _config->getBool(PROP_ALLOW_FLOAT_TO_INT);
-    float floatHeightDeltaTimit = (float) _config->getDouble(PROP_FLAT_HEIGHT_DELTA_LIMIT);
-    float floatLiquidDeltaTimit = (float)_config->getDouble(PROP_FLAT_LIQUID_DELTA_LIMIT);
-    float floatToByteLimit = (float) _config->getDouble(PROP_FLOAT_TO_BYTE_LIMIT);
-    float floatToShortLimit = (float) _config->getDouble(PROP_FLOAT_TO_SHORT_LIMIT);
-
     map->mapHeightHeader.gridMaxHeight = -200000;
     map->mapHeightHeader.gridHeight = 20000;
     map->heightStep = 0.0f;
-
+ 
     for (int i = 0; i < ADTV1::SIZE_TILE_MAP; i++)
     {
         for (int j = 0; j < ADTV1::SIZE_TILE_MAP; j++)
@@ -154,15 +154,13 @@ bool ExtractorClassic::convertADT(ADTV1* adt, MapFile* map)
             }
 
             handleAreas(map, cell, i, j, maxAreaId);
-            handleHeight(map, cell, i, j, allowHeightLimit, useMinHeight);
-            handleLiquid(map, cell, i, j);
+            handleHeight(map, adt, cell, i, j, allowHeightLimit, useMinHeight);
+            handleLiquid(map, adt, cell, i, j);
             handleHoles(map, cell, i, j);
-
-            delete cell;
         }
     }
 
-    packData(map, allowFlowToInt, floatHeightDeltaTimit, floatLiquidDeltaTimit, floatToByteLimit, floatToShortLimit, useMinHeight);
+    packData(map, allowFloatToInt, floatHeightDeltaLimit, floatLiquidDeltaLimit, floatToByteLimit, floatToShortLimit, useMinHeight);
 
     return true;
 }
@@ -183,10 +181,10 @@ void ExtractorClassic::handleAreas(MapFile* map, MCNK* cell, unsigned int i, uns
     }
 }
 
-void ExtractorClassic::handleHeight(MapFile* map, MCNK* cell, unsigned int i, unsigned int j, bool allowHeightLimit, float useMinHeight)
+void ExtractorClassic::handleHeight(MapFile* map, ADTV1* adt, MCNK* cell, unsigned int i, unsigned int j, bool allowHeightLimit, float useMinHeight)
 {
     // Get custom height
-    MCNK::MCVT* v = &(cell->vertices);
+    MCVT* v = adt->getVertices(cell);
 
     // Height values for triangles stored in order:
     // 1     2     3     4     5     6     7     8     9
@@ -213,11 +211,7 @@ void ExtractorClassic::handleHeight(MapFile* map, MCNK* cell, unsigned int i, un
             int cx = j * ADTV1::CHUNK_TILE_MAP_LENGTH + x;
             if (y < ADTV1::CHUNK_TILE_MAP_LENGTH && x < ADTV1::CHUNK_TILE_MAP_LENGTH) // V8 has only 8*8 dimensions.
             {
-                map->V8[cy][cx] = cell->position.z;
-                if (v) // Custom Height
-                {
-                    map->V8[cy][cx] += v->points[y * (ADTV1::CHUNK_TILE_MAP_LENGTH * 2 + 1) + ADTV1::CHUNK_TILE_MAP_LENGTH + 1 + x];
-                }
+                map->V8[cy][cx] = cell->position[2] + v->points[y * (ADTV1::CHUNK_TILE_MAP_LENGTH * 2 + 1) + ADTV1::CHUNK_TILE_MAP_LENGTH + 1 + x];
 
                 // Check for allow limit minimum height (not store height in deep ochean - allow save some memory)
                 if (allowHeightLimit)
@@ -238,11 +232,7 @@ void ExtractorClassic::handleHeight(MapFile* map, MCNK* cell, unsigned int i, un
                 }
             }
 
-            map->V9[cy][cx] = cell->position.z;
-            if (v) // Custom Height
-            {
-                map->V9[cy][cx] += v->points[y * (ADTV1::CHUNK_TILE_MAP_LENGTH * 2 + 1) + x];
-            }
+            map->V9[cy][cx] = cell->position[2] + v->points[y * (ADTV1::CHUNK_TILE_MAP_LENGTH * 2 + 1) + x];
 
             if (allowHeightLimit)
             {
@@ -264,67 +254,65 @@ void ExtractorClassic::handleHeight(MapFile* map, MCNK* cell, unsigned int i, un
     }
 }
 
-void ExtractorClassic::handleLiquid(MapFile* map, MCNK* cell, unsigned int i, unsigned int j)
+void ExtractorClassic::handleLiquid(MapFile* map, ADTV1* adt, MCNK* cell, unsigned int i, unsigned int j)
 {
-    MCNK::MCLQ* liquid = cell->listLiquids;
+    MCLQ* liquids = adt->getLiquid(cell);
+    MCLQ::MCLQLayer* liquid;
     int count = 0;
-    if (!liquid || cell->sizeLiquid <= 8)
+    if (!liquids || cell->sizeLiquid <= 8)
     {
         return;
     }
 
-    for (int y = 0; y < ADTV1::CHUNK_TILE_MAP_LENGTH; y++)
-    {
-        int cy = i * ADTV1::CHUNK_TILE_MAP_LENGTH + y;
-        for (int x = 0; x < ADTV1::CHUNK_TILE_MAP_LENGTH; x++)
-        {
-            int cx = j * ADTV1::CHUNK_TILE_MAP_LENGTH + x;
-            if (!ADTV1::hasNoLiquid(liquid, y, x))
-            {
-                map->liquidShow[cy][cx] = true;
-                if (ADTV1::isDarkWater(liquid, y, x))
-                {
-                    map->liquidFlags[i][j] |= MapFile::MAP_LIQUID_TYPE_DARK_WATER;
-                }
-                ++count;
-            }
-        }
-    }
+    int layers = 0;
 
-
-    if (ADTV1::isRiver(cell))
+    // Detecting layers.
+    if (adt->isRiver(cell))
     {
         map->liquidEntry[i][j] = 1;
         map->liquidFlags[i][j] |= MapFile::MAP_LIQUID_TYPE_WATER;            // water
+        layers++;
     }
-    if (ADTV1::isOcean(cell))
+    if (adt->isOcean(cell))
     {
         map->liquidEntry[i][j] = 2;
         map->liquidFlags[i][j] |= MapFile::MAP_LIQUID_TYPE_OCEAN;            // ocean
+        layers++;
     }
-    if (ADTV1::isMagma(cell) || ADTV1::isSlime(cell))
+    if (adt->isMagma(cell) || adt->isSlime(cell))
     {
         map->liquidEntry[i][j] = 3;
         map->liquidFlags[i][j] |= MapFile::MAP_LIQUID_TYPE_MAGMA;            // magma/slime
+        layers++;
     }
 
-    if (!count && map->liquidFlags[i][j])
+    if (layers > 1)
     {
-        _logger.error("Wrong liquid type detected in MCLQ chunk");
+        _logger.debug("Found %i layers of liquids in this chunk (ADT: %s, Cell X: %u, Cell Y: %u)", layers, adt->getName(), i, j);
     }
 
-    for (int y = 0; y <= ADTV1::CHUNK_TILE_MAP_LENGTH; y++)
+    for (int layer = 0; layer < layers; ++layer)
     {
-        int cy = i * ADTV1::CHUNK_TILE_MAP_LENGTH + y;
-        for (int x = 0; x <= ADTV1::CHUNK_TILE_MAP_LENGTH; x++)
+        liquid = (MCLQ::MCLQLayer*) ((unsigned char*) liquids + 8 + (sizeof(MCLQ::MCLQLayer) * layer)); // We move the pointer by 8 (the magic + size of MCLQ) and the size of a layer.
+        for (int y = 0; y < ADTV1::CHUNK_TILE_MAP_LENGTH; y++)
         {
-            int cx = j * ADTV1::CHUNK_TILE_MAP_LENGTH + x;
-            map->liquidHeight[cy][cx] = liquid->height[y * ADTV1::CHUNK_TILE_MAP_LENGTH + x];
-            map->liquidLight[cy][cx] = liquid->lights[y * ADTV1::CHUNK_TILE_MAP_LENGTH + x];
+            int cy = i * ADTV1::CHUNK_TILE_MAP_LENGTH + y;
+            for (int x = 0; x < ADTV1::CHUNK_TILE_MAP_LENGTH; x++)
+            {
+                int cx = j * ADTV1::CHUNK_TILE_MAP_LENGTH + x;
+                if (!adt->hasNoLiquid(liquid, y, x))
+                {
+                    map->liquidShow[cy][cx] = true;
+                    map->liquidHeight[cy][cx] = liquid->data[y][x].height;
+                    if (adt->isDarkWater(liquid, y, x))
+                    {
+                        map->liquidFlags[i][j] |= MapFile::MAP_LIQUID_TYPE_DARK_WATER;
+                    }
+                    ++count;
+                }
+            }
         }
     }
-
-    delete cell->listLiquids;
 }
 
 void ExtractorClassic::handleHoles(MapFile* map, MCNK* cell, unsigned int i, unsigned int j)
@@ -547,5 +535,4 @@ void ExtractorClassic::packData(MapFile* map, bool allowFloatToInt, float floatH
 
     // Then, pack holes data.
     packHoles(map);
-    
 }

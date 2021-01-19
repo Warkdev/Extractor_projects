@@ -27,24 +27,20 @@
 
 #include <string>
 #include "Poco/Logger.h"
-#include "Poco/BinaryReader.h"
 
 using Poco::Logger;
-using Poco::BinaryReader;
 
 class MPQFile
 {
 	public:
-		MPQFile(std::string name, char* data, long size);
+		MPQFile(std::string name, unsigned char* data, long size);
 		~MPQFile();
 		virtual bool parse();
 	protected:
 		MPQFile();
-		std::string readString();
 		Logger& _logger = Logger::get("Extractor");
 		std::string _name;
-		char* _data;
-		BinaryReader* _buffer;
+		unsigned char* _data;
 		long _size;
 };
 #endif

@@ -23,21 +23,16 @@
  */
 
 #include "MPQFile.h"
-#include "Poco/MemoryStream.h"
-
-using Poco::MemoryInputStream;
 
 MPQFile::MPQFile()
 {
 	_name = "";
-	_buffer = NULL;
 }
 
-MPQFile::MPQFile(std::string name, char* data, long size) : _name(name),  _size(size)
+MPQFile::MPQFile(std::string name, unsigned char* data, long size) : _name(name),  _size(size)
 {
-	MemoryInputStream* stream = new MemoryInputStream(data, _size);
-	_buffer = new BinaryReader(*stream);
 	_data = data;
+	_size = size;
 }
 
 MPQFile::~MPQFile()
@@ -49,24 +44,4 @@ bool MPQFile::parse()
 	// This method is virtual and shall never parse anything
 	_logger.information("Parsing MPQFile");
 	return false;
-}
-
-std::string MPQFile::readString()
-{
-	std::string str;
-	char c;
-	bool complete = false;
-
-	// We read what's on the buffer until we find a '0' terminating the string.
-	while (!complete && (_buffer->stream().read(&c, 1)))
-	{
-		if (c == '\0')
-		{
-			complete = true;
-		}
-		else {
-			str.append(&c, 1);
-		}
-	}
-	return str;
 }

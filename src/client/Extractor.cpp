@@ -85,7 +85,7 @@ void Extractor::readMaps()
 	}
 
 	unsigned int id;
-	unsigned int string_id;
+	unsigned int stringId;
 	std::string name;
 
 	_maps.clear();
@@ -93,17 +93,15 @@ void Extractor::readMaps()
 	for (int i = 0; i < dbc->getRecordCount(); i++)
 	{
 		_logger.debug("Retrieving record %i", i);
-		BinaryReader* record = dbc->getRecord(i);
-		*record >> id;
-		*record >> string_id;
-		name = dbc->getString(string_id);
+		unsigned char* record = dbc->getRecord(i);
+		id = *(unsigned int*) record;
+		stringId = *(unsigned int*)(record + 4);
+		name = dbc->getString(stringId);
 
 		_logger.debug("Map ID: %u", id);
 		_logger.debug("Map Name: %s", name);
 
 		_maps.insert(std::make_pair(id, name));
-
-		delete record;
 	}
 
 	delete dbc;
@@ -135,18 +133,14 @@ void Extractor::readAreaTable()
 	for (int i = 0; i < dbc->getRecordCount(); i++)
 	{
 		_logger.debug("Retrieving record %i", i);
-		BinaryReader* record = dbc->getRecord(i);
-		*record >> id;
-		// We move at the third field
-		record->stream().seekg(3 * 4, std::ios::beg);
-		*record >> flags;
+		unsigned char* record = dbc->getRecord(i);
+		id = *(int*)record;
+		flags = *(int*)(record + 3 * 4);
 
 		_logger.debug("Area ID: %u", id);
 		_logger.debug("Area flags: %u", flags);
 
 		_areas.insert(std::make_pair(id, flags));
-
-		delete record;
 	}
 
 	delete dbc;
@@ -178,18 +172,14 @@ void Extractor::readLiquidType()
 	for (int i = 0; i < dbc->getRecordCount(); i++)
 	{
 		_logger.debug("Retrieving record %i", i);
-		BinaryReader* record = dbc->getRecord(i);
-		*record >> id;
-		// We move at the third field
-		record->stream().seekg(2 * 4, std::ios::beg);
-		*record >> flags;
+		unsigned char* record = dbc->getRecord(i);
+		id = *(int*)record;
+		flags = *(int*)(record + 2 * 4);
 
 		_logger.debug("Liquid Type ID: %u", id);
 		_logger.debug("Liquid flags: %u", flags);
 
 		_liquids.insert(std::make_pair(id, flags));
-
-		delete record;
 	}
 
 	delete dbc;

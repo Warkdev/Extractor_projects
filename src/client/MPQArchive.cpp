@@ -126,7 +126,7 @@ MPQFile* MPQArchive::getFile(std::string file, Version version)
     }
 
     long read = 0;
-    char* buffer = new char[size];
+    unsigned char* buffer = new unsigned char[size];
     if (!SFileReadFile(handle, buffer, size, (DWORD*) &read, NULL) || size != read)
     {
         _logger.error("Can't read %s, size=%u read=%u!", file, size);

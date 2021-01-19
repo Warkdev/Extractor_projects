@@ -23,71 +23,58 @@
  */
 
 #include "ADTV1.h"
-#include "Poco/BinaryReader.h"
-#include "Poco/MemoryStream.h"
 
-using Poco::BinaryReader;
-using Poco::MemoryInputStream;
-
-ADTV1::ADTV1(std::string name, char* data, long size)
+ADTV1::ADTV1(std::string name, unsigned char* data, long size)
 {
 	_name = name;
 	_size = size;
-	MemoryInputStream* stream = new MemoryInputStream(data, _size);
-	_buffer = new BinaryReader(*stream);
 	_data = data;
 }
 
 ADTV1::~ADTV1()
 {
 	delete _data;
-	delete _chunkInfos;
-	delete _buffer;
 }
 
 bool ADTV1::parse()
 {
 	_logger.debug("Parsing ADTv1 file %s", _name);
 
-	_buffer->readRaw(4, _version.magic);
+	std::string magic;
 
-	if (_version.magic != HEADER_MVER)
+	_version = (MVER*) (_data);
+
+	magic = std::string(_version->magic, 4);
+
+	if (magic != HEADER_MVER)
 	{
 		_logger.error("Expected header REVM not found");
 		return false;
 	}
 
-	*_buffer >> _version.size;
-	*_buffer >> _version.version;
-
-	if (_version.version != 18)
+	if (_version->version != 18)
 	{
-		_logger.error("Expected file version 18, got %i", _version.version);
+		_logger.error("Expected file version 18, got %i", _version->version);
 		return false;
 	}
 
-	_buffer->readRaw(4, _header.magic);
+	_header = (MHDR*) (_data + 8 + _version->size);
 
-	if (_header.magic != HEADER_MHDR)
+	magic = std::string(_header->magic, 4);
+
+	if (magic != HEADER_MHDR)
 	{
 		_logger.error("Expected header DHPM not found");
 		return false;
 	}
 
-	*_buffer >> _header.size;
-	*_buffer >> _header.flags;
-	*_buffer >> _header.offsetMCIN;
-	*_buffer >> _header.offsetMTEX;
-	*_buffer >> _header.offsetMMDX;
-	*_buffer >> _header.offsetMMID;
-	*_buffer >> _header.offsetMWMO;
-	*_buffer >> _header.offsetMWID;
-	*_buffer >> _header.offsetMDDF;
-	*_buffer >> _header.offsetMODF;
+	_chunkInfos = (MCIN*)(_data + GLOBAL_OFFSET + _header->offsetMCIN);
 
-	if (!readMCIN()) 
+	magic = std::string(_chunkInfos->magic);
+
+	if (magic != HEADER_MCIN)
 	{
-		_logger.error("Error while reading the MCIN structure");
+		_logger.error("Expected header NICM not found");
 		return false;
 	}
 
@@ -101,157 +88,41 @@ MCNK* ADTV1::getCell(unsigned int x, unsigned int y)
 		return NULL;
 	}
 
-	// Move the stream at the correct location.
-	MCNK* chunk = new MCNK;
-	std::string temp;
-	unsigned int offset = _chunkInfos[x * SIZE_TILE_MAP + y].offsetMCNK;
-	_buffer->stream().seekg(offset, std::ios::beg);
-	_buffer->readRaw(4, chunk->magic);
-
-	if (chunk->magic != HEADER_MCNK)
-	{
-		_logger.error("Expected header KNCM not found");
-		return NULL;
-	}
-
-	*_buffer >> chunk->size;
-	*_buffer >> chunk->flags >> chunk->indexX >> chunk->indexY >> chunk->nbLayers >> chunk->nDoodadRefs >> chunk->offsetMCVT;
-	*_buffer >> chunk->offsetMCNR >> chunk->offsetMCLY >> chunk->offsetMCRF >> chunk->offsetMCAL >> chunk->sizeAlpha;
-	*_buffer >> chunk->offsetMCSH >> chunk->sizeShadow >> chunk->areaId >> chunk->nMapObjRefs >> chunk->holes;
-	for (int i = 0; i < (sizeof(chunk->lowQualityTextMap) / sizeof(chunk->lowQualityTextMap[0])); i++)
-	{
-		for (int j = 0; j < sizeof(chunk->lowQualityTextMap[i]); j++)
-		{
-			*_buffer >> chunk->lowQualityTextMap[i][j];
-		}
-	}
-	*_buffer >> chunk->predTex >> chunk->noEffectDoodad >> chunk->offsetMCSE >> chunk->nSndEmitters >> chunk->offsetMCLQ >> chunk->sizeLiquid;
-	*_buffer >> chunk->position >> chunk->offsetMCCV >> chunk->offsetMCLV;
-	
-	// We move at the MCVT offset.
-	_buffer->stream().seekg(static_cast<unsigned __int64>(offset) + chunk->offsetMCVT, std::ios::beg);
-
-	_buffer->readRaw(4, chunk->vertices.magic);
-
-	if (chunk->vertices.magic != HEADER_MCVT)
-	{
-		_logger.error("Expected header TVCM");
-		return NULL;
-	}
-
-	*_buffer >> chunk->vertices.size;
-	for (int i = 0; i < 145; i++)
-	{
-		*_buffer >> chunk->vertices.points[i];
-	}
-
-	// We move at the MCNR offset.
-	_buffer->stream().seekg(static_cast<unsigned __int64>(offset) + chunk->offsetMCNR, std::ios::beg);
-	_buffer->readRaw(4, chunk->normals.magic);
-
-	if (chunk->normals.magic != HEADER_MCNR)
-	{
-		_logger.error("Expected header RNCM");
-		return NULL;
-	}
-
-	*_buffer >> chunk->normals.size;
-	for (int i = 0; i < 145; i++)
-	{
-		*_buffer >> chunk->normals.points[i];
-	}
-
-	if (hasLiquid(chunk))
-	{
-		// Now, we move at the location of MCLQ chunk.
-		_buffer->stream().seekg(static_cast<unsigned __int64>(offset) + chunk->offsetMCLQ, std::ios::beg);
-		_buffer->readRaw(4, temp);
-
-		if (temp != HEADER_MCLQ)
-		{
-			_logger.error("Expected header QLCM");
-			return NULL;
-		}
-		// We skip the size, not always good.
-		_buffer->stream().seekg(4, std::ios::cur);
-		int liquidLayers = 0;
-		if (chunk->flags & MCNK_IS_RIVER)
-		{
-			liquidLayers++;
-		}
-		if (chunk->flags & MCNK_IS_OCEAN)
-		{
-			liquidLayers++;
-		}
-		if (chunk->flags & MCNK_IS_MAGMA)
-		{
-			liquidLayers++;
-		}
-		if (chunk->flags & MCNK_IS_SLIME)
-		{
-			liquidLayers++;
-		}
-
-		chunk->listLiquids = new MCNK::MCLQ[liquidLayers];
-
-		for (int i = 0; i < liquidLayers; i++)
-		{
-			*_buffer >> chunk->listLiquids[i].minHeight >> chunk->listLiquids[i].maxHeight;
-			for (int j = 0; j < chunk->LIQUID_DATA_LENGTH; j++)
-			{
-				for (int k = 0; k < chunk->LIQUID_DATA_LENGTH; k++)
-				{
-					*_buffer >> chunk->listLiquids[i].lights[j * chunk->LIQUID_DATA_LENGTH + k] >> chunk->listLiquids[i].height[j * chunk->LIQUID_DATA_LENGTH + k];
-				}
-			}
-			for (int j = 0; j < chunk->LIQUID_FLAG_LENGTH; j++)
-			{
-				for (int k = 0; k < chunk->LIQUID_FLAG_LENGTH; k++)
-				{
-					*_buffer >> chunk->listLiquids[i].flags[j * chunk->LIQUID_FLAG_LENGTH + k];
-				}
-			}
-
-			// We pass on the SWFlowv, doesn't really matter for us.
-		}
-	}
-
-	return chunk;
+	return (MCNK*) (_data + _chunkInfos->cells[x][y].offsetMCNK);
 }
 
-bool ADTV1::readMCIN()
+MCVT* ADTV1::getVertices(MCNK* chunk)
 {
-	// Move the stream at the correct location.
-	_buffer->stream().seekg(static_cast<unsigned __int64>(GLOBAL_OFFSET) + _header.offsetMCIN, std::ios::beg);
-	std::string magic;
-	unsigned int size;
-	_buffer->readRaw(4, magic);
+	MCVT* v = (MCVT*)((unsigned char*)chunk + chunk->offsetMCVT);
+	std::string magic(v->magic, 4);
 
-	if (magic != HEADER_MCIN)
+	if (magic != HEADER_MCVT)
 	{
-		_logger.error("Expected header NICM not found");
-		return false;
+		_logger.error("Expected header TVCM not found");
+		return NULL;
 	}
 
-	*_buffer >> size;
-
-	_cells = size / sizeof(MCIN);
-	_chunkInfos = new MCIN[_cells];
-
-	for (int i = 0; i < _cells; i++)
-	{
-		*_buffer >> _chunkInfos[i].offsetMCNK;
-		*_buffer >> _chunkInfos[i].size;
-		*_buffer >> _chunkInfos[i].flags;
-		*_buffer >> _chunkInfos[i].asyncId;
-	}
-
-	return true;
+	return v;
 }
 
-unsigned int ADTV1::cellsSize()
+MCLQ* ADTV1::getLiquid(MCNK* chunk)
 {
-	return _cells;
+	if (!hasLiquid(chunk))
+	{
+		_logger.debug("No liquid chunk for this cell");
+		return NULL;
+	}
+
+	MCLQ* liq = (MCLQ*)((unsigned char*)chunk + chunk->offsetMCLQ);
+	std::string magic(liq->magic, 4);
+
+	if (magic != HEADER_MCLQ)
+	{
+		_logger.error("Expected header QLCM not found");
+		return NULL;
+	}
+
+	return liq;
 }
 
 bool ADTV1::hasLiquid(MCNK* chunk)
@@ -259,19 +130,19 @@ bool ADTV1::hasLiquid(MCNK* chunk)
 	return chunk->flags & MCNK_IS_RIVER || chunk->flags & MCNK_IS_OCEAN || chunk->flags & MCNK_IS_MAGMA || chunk->flags & MCNK_IS_SLIME;
 }
 
-bool ADTV1::hasLiquid(MCNK::MCLQ* liquid, unsigned int x, unsigned int y)
+bool ADTV1::hasLiquid(MCLQ::MCLQLayer* liquid, unsigned int x, unsigned int y)
 {
-	return liquid->flags[x * MCNK::LIQUID_FLAG_LENGTH + y] & MCLQ_HAS_LIQUID;
+	return liquid->flags[x][y] & MCLQ_HAS_LIQUID;
 }
 
-bool ADTV1::hasNoLiquid(MCNK::MCLQ* liquid, unsigned int x, unsigned int y)
+bool ADTV1::hasNoLiquid(MCLQ::MCLQLayer* liquid, unsigned int x, unsigned int y)
 {
-	return (liquid->flags[x * MCNK::LIQUID_FLAG_LENGTH + y] & MCLQ_NO_LIQUID) == MCLQ_NO_LIQUID;
+	return (liquid->flags[x][y] & MCLQ_NO_LIQUID) == MCLQ_NO_LIQUID;
 }
 
-bool ADTV1::isDarkWater(MCNK::MCLQ* liquid, unsigned int x, unsigned int y)
+bool ADTV1::isDarkWater(MCLQ::MCLQLayer* liquid, unsigned int x, unsigned int y)
 {
-	return liquid->flags[x * MCNK::LIQUID_FLAG_LENGTH + y] & MCLQ_IS_DARK;
+	return liquid->flags[x][y] & MCLQ_IS_DARK;
 }
 
 bool ADTV1::hasNoLiquid(MCNK* chunk)
@@ -297,4 +168,9 @@ bool ADTV1::isMagma(MCNK* chunk)
 bool ADTV1::isSlime(MCNK* chunk)
 {
 	return chunk->flags & MCNK_IS_SLIME;
+}
+
+std::string ADTV1::getName()
+{
+	return std::string(_name);
 }
