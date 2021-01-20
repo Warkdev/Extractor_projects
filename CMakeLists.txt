@@ -124,14 +124,14 @@ source_group("client\\cataclysm" FILES ${SRC_GRP_CLIENT_CATA})
 file(GLOB SRC_GRP_MAP_FILES src/maps/*.cpp src/maps/*.h)
 source_group("maps" FILES ${SRC_GRP_MAP_FILES})
 
-#Geometry File group
-file(GLOB SRC_GRP_GEOMETRY_FILES src/geometry/*.cpp src/geometry/*.h)
-source_group("geometry" FILES ${SRC_GRP_GEOMETRY_FILES})
+#Vmap File group
+file(GLOB SRC_GRP_VMAP_FILES src/vmaps/*.cpp src/vmaps/*.h)
+source_group("maps" FILES ${SRC_GRP_VMAP_FILES})
 
 add_executable(extractor
     ${SRC_GRP_MAIN}
-    ${SRC_GRP_GEOMETRY_FILES}
     ${SRC_GRP_MAP_FILES}
+    ${SRC_GRP_VMAP_FILES}
     ${SRC_GRP_CLIENT}
     ${SRC_GRP_CLIENT_CLASSIC}
     ${SRC_GRP_CLIENT_TBC}
