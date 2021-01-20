@@ -126,7 +126,7 @@ source_group("maps" FILES ${SRC_GRP_MAP_FILES})
 
 #Vmap File group
 file(GLOB SRC_GRP_VMAP_FILES src/vmaps/*.cpp src/vmaps/*.h)
-source_group("maps" FILES ${SRC_GRP_VMAP_FILES})
+source_group("vmaps" FILES ${SRC_GRP_VMAP_FILES})
 
 add_executable(extractor
     ${SRC_GRP_MAIN}
