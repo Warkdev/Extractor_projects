@@ -28,6 +28,7 @@
 #include "Poco/Logger.h"
 #include "Poco/Util/LayeredConfiguration.h"
 #include "MPQManager.h"
+#include "../maps/MapFile.h"
 
 using Poco::Logger;
 using Poco::Util::LayeredConfiguration;
@@ -63,6 +64,12 @@ class Extractor
 		void readLiquidType();
 		virtual void exportMaps(std::string outputPath);
 		virtual void exportWMOs(std::string outputPath);
+
+		void packAreaData(MapFile* map);
+		void packHeight(MapFile* map, bool allowFloatToInt, float floatHeightDeltaLimit, float floatToByteLimit, float floatToShortLimit);
+		void packLiquid(MapFile* map, bool allowFloatToInt, float floatLiquidDeltaLimit, float useMinHeight);
+		void packHoles(MapFile* map);
+		void packData(char* version, unsigned int build, MapFile* map, bool allowFloatToInt, float floatHeightDeltaLimit, float floatLiquidDeltaLimit, float floatToByteLimit, float floatToShortLimit, float useMinHeight);
 
 		// Map Extractor Configuration keys.
 		const std::string PROP_ALLOW_HEIGHT_LIMIT = "map.allowHeightLimit";

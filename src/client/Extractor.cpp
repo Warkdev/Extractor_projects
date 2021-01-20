@@ -66,6 +66,223 @@ void Extractor::extract(std::string outputPath, bool exportMap, bool generateVma
 	_logger.information("You should not end up here");
 }
 
+void Extractor::packAreaData(MapFile* map)
+{
+    map->fullArea = false;
+    map->header.areaMapOffset = sizeof(map->header);
+    map->header.areaMapSize = sizeof(MapFile::MapAreaHeader);
+    map->areaHeader.flags = 0;
+
+    unsigned int areaflag = map->areaFlags[0][0];
+    for (int y = 0; y < ADTV1::SIZE_TILE_MAP; y++)
+    {
+        for (int x = 0; x < ADTV1::SIZE_TILE_MAP; x++)
+        {
+            if (map->areaFlags[y][x] != areaflag)
+            {
+                map->fullArea = true;
+                y = ADTV1::SIZE_TILE_MAP;
+                break;
+            }
+        }
+    }
+
+    if (map->fullArea)
+    {
+        map->areaHeader.gridArea = 0;
+        map->header.areaMapSize += sizeof(map->areaFlags);
+    }
+    else {
+        map->areaHeader.flags |= MapFile::MAP_AREA_NO_AREA;
+        map->areaHeader.gridArea = areaflag;
+    }
+}
+
+void Extractor::packHeight(MapFile* map, bool allowFloatToInt, float floatHeightDeltaLimit, float floatToByteLimit, float floatToShortLimit)
+{
+    map->header.heightMapOffset = map->header.areaMapOffset + map->header.areaMapSize;
+    map->header.heightMapSize = sizeof(MapFile::MapHeightHeader);
+
+    map->mapHeightHeader.flags = 0;
+    float diff = map->mapHeightHeader.gridMaxHeight - map->mapHeightHeader.gridHeight;
+
+    // Don't store if the surface is flat.
+    if ((map->mapHeightHeader.gridHeight == map->mapHeightHeader.gridMaxHeight) || (allowFloatToInt && diff < floatHeightDeltaLimit))
+    {
+        map->mapHeightHeader.flags |= MapFile::MAP_HEIGHT_NO_HEIGHT;
+    }
+    else
+    {
+        if (allowFloatToInt)
+        {
+            if (diff < floatToByteLimit)
+            {
+                map->mapHeightHeader.flags |= MapFile::MAP_HEIGHT_AS_INT8;
+                map->heightStep = 255 / diff;
+                map->header.heightMapSize += 33025; // Size of V8 & V9 on a single byte.
+            }
+            else if (diff < floatToShortLimit)
+            {
+                map->mapHeightHeader.flags |= MapFile::MAP_HEIGHT_AS_INT16;
+                map->heightStep = 65535 / diff;
+                map->header.heightMapSize += 66050; // Size of V8 & V9 on 2-bytes.
+            }
+            else
+            {
+                map->header.heightMapSize += 132100; // Size of V8 & V9 on 4-bytes.
+            }
+        }
+        else
+        {
+            map->header.heightMapSize += 132100; // Size of V8 & V9 on 4-bytes.
+        }
+    }
+}
+
+void Extractor::packLiquid(MapFile* map, bool allowFloatToInt, float floatLiquidDeltaLimit, float useMinHeight)
+{
+    map->fullLiquidType = false;
+    unsigned char liquidType = map->liquidFlags[0][0];
+
+    for (int y = 0; y < ADTV1::SIZE_TILE_MAP; y++)
+    {
+        for (int x = 0; x < ADTV1::SIZE_TILE_MAP; x++)
+        {
+            if (map->liquidFlags[y][x] != liquidType)
+            {
+                map->fullLiquidType = true;
+                y = ADTV1::SIZE_TILE_MAP;
+                break;
+            }
+        }
+    }
+
+    // No water data, the whole grid has '0' as liquid type.
+    if (!liquidType && !map->fullLiquidType)
+    {
+        map->header.liquidMapOffset = 0;
+        map->header.liquidMapSize = 0;
+    }
+    else
+    {
+        int minX = 255, minY = 255;
+        int maxX = 0, maxY = 0;
+        float maxHeight = -20000;
+        float minHeight = 20000;
+        for (int y = 0; y < ADTV1::SIZE_ADT_GRID; y++)
+        {
+            for (int x = 0; x < ADTV1::SIZE_ADT_GRID; x++)
+            {
+                if (map->liquidShow[y][x])
+                {
+                    if (minX > x)
+                    {
+                        minX = x;
+                    }
+                    if (maxX < x)
+                    {
+                        maxX = x;
+                    }
+                    if (minY > y)
+                    {
+                        minY = y;
+                    }
+                    if (maxY < y)
+                    {
+                        maxY = y;
+                    }
+                    float h = map->liquidHeight[y][x];
+                    if (maxHeight < h)
+                    {
+                        maxHeight = h;
+                    }
+                    if (minHeight > h)
+                    {
+                        minHeight = h;
+                    }
+                }
+                else
+                {
+                    map->liquidHeight[y][x] = useMinHeight;
+                }
+            }
+        }
+        map->header.liquidMapOffset = map->header.heightMapOffset + map->header.heightMapSize;
+        map->header.liquidMapSize = sizeof(MapFile::MapLiquidHeader);
+        map->mapLiquidHeader.flags = 0;
+        map->mapLiquidHeader.liquidType = 0;
+        map->mapLiquidHeader.offsetX = minX;
+        map->mapLiquidHeader.offsetY = minY;
+        map->mapLiquidHeader.width = maxX - minX + 1 + 1;
+        map->mapLiquidHeader.height = maxY - minY + 1 + 1;
+        map->mapLiquidHeader.liquidLevel = minHeight;
+
+        if (maxHeight == minHeight)
+        {
+            map->mapLiquidHeader.flags |= MapFile::MAP_LIQUID_NO_HEIGHT;
+        }
+
+        // Not need store if flat surface
+        if (allowFloatToInt && (maxHeight - minHeight) < floatLiquidDeltaLimit)
+        {
+            map->mapLiquidHeader.flags |= MapFile::MAP_LIQUID_NO_HEIGHT;
+        }
+
+        if (!map->fullLiquidType)
+        {
+            map->mapLiquidHeader.flags |= MapFile::MAP_LIQUID_NO_TYPE;
+        }
+
+        if (map->mapLiquidHeader.flags & MapFile::MAP_LIQUID_NO_TYPE)
+        {
+            map->mapLiquidHeader.liquidType = liquidType;
+        }
+        else
+        {
+            map->header.liquidMapSize += sizeof(map->liquidEntry) + sizeof(map->liquidFlags);
+        }
+
+        if (!(map->mapLiquidHeader.flags & MapFile::MAP_LIQUID_NO_HEIGHT))
+        {
+            map->header.liquidMapSize += sizeof(float) * map->mapLiquidHeader.width * map->mapLiquidHeader.height;
+        }
+    }
+}
+
+void Extractor::packHoles(MapFile* map)
+{
+    if (map->header.liquidMapOffset)
+    {
+        map->header.holesOffset = map->header.liquidMapOffset + map->header.liquidMapSize;
+    }
+    else
+    {
+        map->header.holesOffset = map->header.heightMapOffset + map->header.heightMapSize;
+    }
+
+    map->header.holesSize = sizeof(map->holes);
+}
+
+void Extractor::packData(char* version, unsigned int build,  MapFile* map, bool allowFloatToInt, float floatHeightDeltaLimit, float floatLiquidDeltaLimit, float floatToByteLimit, float floatToShortLimit, float useMinHeight)
+{
+    sprintf(map->header.versionMagic, version);
+    map->header.buildMagic = build;
+    map->header.areaMapOffset = sizeof(map->header);
+    map->header.areaMapSize = sizeof(MapFile::MapAreaHeader);
+
+    // First, pack area data.
+    packAreaData(map);
+
+    // Then, pack height data.
+    packHeight(map, allowFloatToInt, floatHeightDeltaLimit, floatToByteLimit, floatToShortLimit);
+
+    // Then, pack liquid data.
+    packLiquid(map, allowFloatToInt, floatLiquidDeltaLimit, useMinHeight);
+
+    // Then, pack holes data.
+    packHoles(map);
+}
+
 void Extractor::exportMaps(std::string outputPath)
 {
 	_logger.information("You should not end up here");

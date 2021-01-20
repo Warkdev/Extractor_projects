@@ -25,7 +25,6 @@
 #include <string>
 #include "../Extractor.h"
 #include "../mpq/ADTV1.h"
-#include "../../maps/MapFile.h"
 #include "Poco/Util/LayeredConfiguration.h"
 
 using Poco::Util::LayeredConfiguration;
@@ -47,11 +46,7 @@ class ExtractorClassic : public Extractor
 		void handleHeight(MapFile* map, ADTV1* adt, MCNK* cell, unsigned int i, unsigned int j, bool allowHeightLimit, float useMinHeight);
 		void handleLiquid(MapFile* map, ADTV1* adt, MCNK* cell, unsigned int i, unsigned int j);
 		void handleHoles(MapFile* map, MCNK* cell, unsigned int i, unsigned int j);
-		void packAreaData(MapFile* map);
-		void packHeight(MapFile* map, bool allowFloatToInt, float floatHeightDeltaLimit, float floatToByteLimit, float floatToShortLimit);
-		void packLiquid(MapFile* map, bool allowFloatToInt, float floatLiquidDeltaLimit, float useMinHeight);
-		void packHoles(MapFile* map);
-		void packData(MapFile* map, bool allowFloatToInt, float floatHeightDeltaLimit, float floatLiquidDeltaLimit, float floatToByteLimit, float floatToShortLimit, float useMinHeight);
+		
 	private:
 		const std::string PATTERN_WDT = "World\\Maps\\%s\\%s.wdt";
 		const std::string PATTERN_ADT = "World\\Maps\\%s\\%s_%i_%i.adt";
