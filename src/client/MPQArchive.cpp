@@ -105,7 +105,7 @@ MPQFile* MPQArchive::getFile(std::string file, Version version)
         int error = GetLastError();
         if (error != ERROR_FILE_NOT_FOUND)
         {
-            _logger.error("Can't open %s, err=%u!", file, GetLastError());
+            _logger.debug("Can't open %s, err=%u!", file, GetLastError());
         }
         return NULL;
     }
@@ -115,14 +115,14 @@ MPQFile* MPQArchive::getFile(std::string file, Version version)
 
     if (hi)
     {
-        _logger.error("Can't open %s, size[hi] = %u!", file, hi);
+        _logger.debug("Can't open %s, size[hi] = %u!", file, hi);
         SFileCloseFile(handle);
         return NULL;
     }
 
     if (size <= 1)
     {
-        _logger.error("Can't open %s, size[hi] = %u!", file, size);
+        _logger.debug("Can't open %s, size[hi] = %u!", file, size);
         SFileCloseFile(handle);
         return NULL;
     }
@@ -131,7 +131,7 @@ MPQFile* MPQArchive::getFile(std::string file, Version version)
     unsigned char* buffer = new unsigned char[size];
     if (!SFileReadFile(handle, buffer, size, (DWORD*) &read, NULL) || size != read)
     {
-        _logger.error("Can't read %s, size=%u read=%u!", file, size);
+        _logger.debug("Can't read %s, size=%u read=%u!", file, size);
         SFileCloseFile(handle);
         return NULL;
     }
@@ -160,7 +160,13 @@ MPQFile* MPQArchive::getFile(std::string file, Version version)
         switch (version)
         {
             case Version::CLIENT_CLASSIC:
-                return new WMOV1(file, buffer, size);
+                if (isRootWMO(file))
+                {
+                    return new WMOV1(file, buffer, size);
+                }
+                else {
+                    return new WMOGroupV1(file, buffer, size);
+                }
                 break;
         }
     }
@@ -181,4 +187,24 @@ bool MPQArchive::isAllowedExt(std::string file)
         || Poco::endsWith(file, EXT_M2)
         || Poco::endsWith(file, EXT_MDX)
         );
+}
+
+bool MPQArchive::isRootWMO(std::string file)
+{
+    int digitCount = 0;
+    std::string temp;
+
+    temp.assign(file.substr(0, file.find_last_of(".")));
+    reverse(temp.begin(), temp.end());
+    for (int i = 0; i < 3; i++)
+    {
+        if (!isdigit(temp[i]))
+        {
+            i = 3;
+            continue;
+        }
+        digitCount++;
+    }
+
+    return digitCount < 3;
 }

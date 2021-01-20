@@ -22,6 +22,9 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
+#ifndef WMOV1_H
+#define WMOV1_H
+
 #include <string>
 #include "Poco/Logger.h"
 #include "MPQFile.h"
@@ -280,6 +283,8 @@ public:
 	WMOV1(std::string name, unsigned char* data, long size);
 	~WMOV1();
 	bool parse();
+	unsigned int getNGroups();
+	unsigned int getWMOID();
 
 private:
 	enum WMOHeaderFlags {
@@ -315,6 +320,7 @@ private:
 			unsigned char b;
 			unsigned char a;
 		} ambColor;
+		unsigned int wmoID;
 		struct {
 			struct {
 				float x;
@@ -389,3 +395,312 @@ private:
 	const std::string HEADER_MCVP = "PVCM";
 	unsigned int _offsetMCVP = 0;
 };
+
+// Here starts WMOGroup content
+
+enum PolyFlags {
+	UNK1 = 0x1,
+	NO_CAM_COLLIDE = 0x2,
+	DETAIL = 0x4,
+	COLLISION = 0x8,
+	HINT = 0x10,
+	RENDER = 0x20,
+	UNK2 = 0x40,
+	COLLIDE_HIT = 0x80
+};
+
+struct MOPY {
+	char magic[4];
+	unsigned int size;
+	struct Material {
+		unsigned char flags;
+		unsigned char materialId;
+	} materials[];
+};
+
+struct MOVI {
+	char magic[4];
+	unsigned int size;
+	short indexes[];
+};
+
+struct MOVT {
+	char magic[4];
+	unsigned int size;
+	struct Vertex
+	{
+		float x;
+		float y;
+		float z;
+	} vertices[];
+};
+
+struct MONR {
+	char magic[4];
+	unsigned int size;
+	struct Normal
+	{
+		float x;
+		float y;
+		float z;
+	} normals[];
+};
+
+struct MOTV {
+	char magic[4];
+	unsigned int size;
+	struct TextureVertex
+	{
+		float x;
+		float y;
+	} textVertex[];
+};
+
+struct MOBA {
+	char magic[4];
+	unsigned int size;
+	struct Batch {
+		unsigned short bx;
+		unsigned short by;
+		unsigned short bz;
+		unsigned short tx;
+		unsigned short ty;
+		unsigned short tz;
+		unsigned int startIdx;
+		unsigned short count;
+		unsigned short minIdx;
+		unsigned short maxIdx;
+		unsigned char flag;
+		unsigned char padding;
+	} batches[];
+};
+
+struct MOLR {
+	char magic[4];
+	unsigned int size;
+	unsigned short lights[];
+};
+
+struct MODR {
+	char magic[4];
+	unsigned int size;
+	unsigned short doodads[];
+};
+
+struct MOBN {
+	char magic[4];
+	unsigned int size;
+	struct BspNode {
+		unsigned short flags;
+		unsigned short negChild;
+		unsigned short posChild;
+		unsigned short nFaces;
+		unsigned int faceStart;
+		float planeDist;
+	} bspTree[];
+};
+
+struct MOBR {
+	char magic[4];
+	unsigned size;
+	unsigned short nodeFacesIndices[];
+};
+
+struct MOCV {
+	char magic[4];
+	unsigned size;
+	struct Vector {
+		unsigned char b;
+		unsigned char g;
+		unsigned char r;
+		unsigned char a;
+	} colors[];
+};
+
+struct MLIQ {
+	char magic[4];
+	unsigned size;
+	struct Header {
+		unsigned int xVerts;
+		unsigned int yVerts;
+		unsigned int xTiles;
+		unsigned int yTiles;
+		struct {
+			float x;
+			float y;
+			float z;
+		} baseCoords;
+		unsigned short materialId;
+	};
+};
+
+// Liquid vertices comes at the end of MLIQ chunk
+struct LiquidVert {
+	unsigned char flow1;
+	unsigned char flow2;
+	unsigned char flow1Pct;
+	unsigned char filler;
+	float height;
+};
+
+// And after that, we get the liquid tiles list.
+enum LiquidTileFlags {
+	IS_WATER = 0x00,
+	IS_OCEAN = 0x01,
+	IS_MAGMA = 0x02,
+	IS_SLIME = 0x03,
+	IS_ANIMATED = 0x04,
+	IS_E = 0x10,
+	IS_F = 0x20,
+	IS_FISHABLE = 0x40,
+	HAS_OVERLAP = 0x80
+};
+
+enum LiquidTileMasks {
+	MASK_LIQUID = 0x03,
+	MASK_NO_LIQUID = 0x0F
+};
+
+struct LiquidTile {
+	unsigned char flag;
+};
+
+struct MORI {
+	char magic[4];
+	unsigned int size;
+	unsigned short triangleStripIndeces[];
+};
+
+class WMOGroupV1 : public MPQFile
+{
+	public:
+		WMOGroupV1(std::string name, unsigned char* data, long size);
+		~WMOGroupV1();
+		bool parse();
+		bool hasLiquid();
+	private:
+		/** File version - REVM chunk */
+		const std::string HEADER_MVER = "REVM";
+		static const unsigned int SUPPORTED_VERSION = 17;
+		struct Version {
+			char magic[4];
+			unsigned int size;
+			unsigned int version;
+		} *_version;
+		/** MOGP chunk */
+		const std::string HEADER_MOGP = "PGOM";
+
+		enum GroupFlags
+		{
+			HAS_BSP_TREE =			0x00000001,
+			HAS_LIGHT_MAP =			0x00000002,
+			HAS_VERTEX_COLORS =		0x00000004,
+			IS_EXTERIOR =			0x00000008,
+			UNK1 =					0x00000010,
+			UNK2 =					0x00000020,
+			EXTERIOR_LIT =			0x00000040,
+			UNREACHABLE =			0x00000080,
+			UNK3 =					0x00000100,
+			HAS_LIGHT =				0x00000200,
+			UNK4 =					0x00000400,
+			HAS_DOODADS =			0x00000800,
+			HAS_LIQUID =			0x00001000,
+			IS_INTERIOR =			0x00002000,
+			UNK5 =					0x00004000,
+			UNK6 =					0x00008000,
+			ALWAYS_DRAW =			0x00010000,
+			HAS_TRIANGLESTRIP =		0x00020000,
+			SHOW_SKYBOX =			0x00040000,
+			IS_OCEAN =				0x00080000,
+			UNK7 =					0x00100000,
+			IS_MOUNT_ALLOWED =		0x00200000,
+			UNK8 =					0x00400000,
+			UNK9 =					0x00800000,
+			HAS_2_MOCV =			0x01000000,
+			HAS_2_MOTV =			0x02000000,
+			ANTIPORTAL =			0x04000000,
+			UNK10 =					0x08000000,
+			UNK11 =					0x10000000,
+			EXTERIOR_CULL =			0x20000000,
+			HAS_3_MOTV =			0x40000000,
+			UNK12 =					0x80000000
+		};
+
+		enum GroupLiquidMask
+		{
+			MASK_HAS_LIQUID = 0x0F
+		};
+
+		struct MOGP {
+			char magic[4];
+			unsigned int size;
+			struct GroupInfo {
+				unsigned int groupName;
+				unsigned int descriptiveGroupName;
+				unsigned int flags;
+				struct {
+					struct {
+						float x;
+						float y;
+						float z;
+					} min;
+					struct {
+						float x;
+						float y;
+						float z;
+					} max;
+				} boundingBox;
+				unsigned short portalStart;
+				unsigned short portalCount;
+				unsigned short transBatchCount;
+				unsigned short intBatchCount;
+				unsigned short extBatchCount;
+				unsigned short padding;
+				unsigned char fogsIds[4];
+				unsigned int groupLiquid;
+				unsigned int wmoAreaTableRecId;
+			} info;
+		} * _group;
+		
+		/** MOPY chunk */
+		const std::string HEADER_MOPY = "YPOM";
+		unsigned int _offsetMOPY = 0;
+		/** MOVI chunk */
+		const std::string HEADER_MOVI = "IVOM";
+		unsigned int _offsetMOVI = 0;
+		/** MOVT chunk */
+		const std::string HEADER_MOVT = "TVOM";
+		unsigned int _offsetMOVT = 0;
+		/** MONR chunk */
+		const std::string HEADER_MONR = "RNOM";
+		unsigned int _offsetMONR = 0;
+		/** MOTV chunk */
+		const std::string HEADER_MOTV = "VTOM";
+		unsigned int _offsetMOTV = 0;
+		/** MOBA chunk */
+		const std::string HEADER_MOBA = "ABOM";
+		unsigned int _offsetMOBA = 0;
+		/** MOLR chunk */
+		const std::string HEADER_MOLR = "RLOM";
+		unsigned int _offsetMOLR = 0;
+		/** MODR chunk */
+		const std::string HEADER_MODR = "RDOM";
+		unsigned int _offsetMODR = 0;
+		/** MOBN chunk */
+		const std::string HEADER_MOBN = "NBOM";
+		unsigned int _offsetMOBN = 0;
+		/** MOBR chunk */
+		const std::string HEADER_MOBR = "RBOM";
+		unsigned int _offsetMOBR = 0;
+		/** MOCV chunk */
+		const std::string HEADER_MOCV = "VCOM";
+		unsigned int _offsetMOCV = 0;
+		/** MLIQ chunk */
+		const std::string HEADER_MLIQ = "QILM";
+		unsigned int _offsetMLIQ = 0;
+		/** MORI chunk */
+		const std::string HEADER_MORI = "IROM";
+		unsigned int _offsetMORI = 0;
+};
+
+#endif

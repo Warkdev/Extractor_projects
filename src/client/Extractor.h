@@ -29,6 +29,7 @@
 #include "Poco/Util/LayeredConfiguration.h"
 #include "MPQManager.h"
 #include "../maps/MapFile.h"
+#include "../vmaps/WMOFile.h"
 
 using Poco::Logger;
 using Poco::Util::LayeredConfiguration;
@@ -82,6 +83,7 @@ class Extractor
 
 		// Vmap Generator Configuration keys.
 		const std::string PROP_VMAP_CACHE_TO_DISK = "vmap.cache.disk";
+		const std::string PROP_VMAP_PRECISE_VECTOR_DATA = "vmap.preciseVectorData";
 
 		Logger& _logger = Logger::get("Extractor");
 		LayeredConfiguration* _config;

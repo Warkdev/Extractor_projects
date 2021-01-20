@@ -348,6 +348,7 @@ void ExtractorClassic::exportWMOs(std::string outputPath)
 {
     _logger.information("Extracting WMOs..");
     bool cacheToDisk = _config->getBool(PROP_VMAP_CACHE_TO_DISK);
+    bool preciseVectorData = _config->getBool(PROP_VMAP_PRECISE_VECTOR_DATA);
     Path path(outputPath + PATH_WMOS);
     File file(path);
 
@@ -357,23 +358,18 @@ void ExtractorClassic::exportWMOs(std::string outputPath)
     }
 
     std::vector<std::string> wmos = _mpqManager->getWMOList();
-    File wmoFile;
     Path temp;
     std::string flatName;
-    std::string directory;
     std::string hash;
     MD5Engine engine;
     DigestOutputStream ds(engine);
+    char groupFile[1024];
 
     for (auto it = wmos.begin(); it < wmos.end(); ++it)
     {
         _logger.debug("Extracting wmo %s", *it);
-        directory = "";
-        temp.assign(Poco::toLower(*it), Path::Style::PATH_WINDOWS); // Force path to interpret it with '\' as separator.
-        for (int i = 0; i < temp.depth(); i++) {
-            directory.append(temp.directory(i));
-        }
-        ds << directory;
+        temp.assign(*it, Path::Style::PATH_WINDOWS); // Force path to interpret it with '\' as separator.
+        ds << temp.parent().toString();
         hash = DigestEngine::digestToHex(engine.digest());
         ds.clear();
         WMOV1* wmo = (WMOV1*)_mpqManager->getFile(*it, _version);
@@ -391,10 +387,36 @@ void ExtractorClassic::exportWMOs(std::string outputPath)
             continue;
         }
 
+        WMOFile* wmoFile = new WMOFile(temp.parent().toString(), hash, temp.getFileName());
+
+        convertWMORoot(wmo, wmoFile);
+
+        for (int i = 0; i < wmo->getNGroups(); i++) {
+            sprintf(groupFile, "%s%s_%03d.wmo", temp.parent().toString().c_str(), temp.getBaseName().c_str(), i);
+            WMOGroupV1* group = (WMOGroupV1*)_mpqManager->getFile(groupFile, _version);
+
+            if (!group)
+            {
+                _logger.warning("WMO Group file (%s) does not exist, warning can be safely ignored but no vmap info will be generated", std::string(groupFile));
+                continue;
+            }
+
+            if (!wmo->parse())
+            {
+                _logger.error("Error while parsong the WMO Group file %s", std::string(groupFile));
+                delete group;
+                continue;
+            }
+
+            convertWMOGroup(group, wmoFile, preciseVectorData);
+
+            delete group;
+        }
+
         if (cacheToDisk)
         {
-            wmoFile = path.toString() + "/" + hash + "-" + temp.getFileName();
-            wmoFile.createFile();
+            wmoFile->save(path.toString());
+            delete wmoFile;
         }
 
         delete wmo;
@@ -405,4 +427,17 @@ void ExtractorClassic::exportWMOs(std::string outputPath)
     {
         file.remove(true);
     }
+}
+
+bool ExtractorClassic::convertWMORoot(WMOV1* wmo, WMOFile* file)
+{
+    strncpy(file->header.versionMagic, "z070", 4);
+    file->header.nGroups = wmo->getNGroups();
+    file->header.rootWMOID = wmo->getWMOID();
+    return true;
+}
+
+bool ExtractorClassic::convertWMOGroup(WMOGroupV1* wmoGroup, WMOFile* file, bool preciseVectorData)
+{
+    return true;
 }

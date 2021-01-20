@@ -80,4 +80,5 @@ class MPQArchive
 		void open();
 		void close();
 		bool isAllowedExt(std::string file);
+		bool isRootWMO(std::string file);
 };

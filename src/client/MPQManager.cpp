@@ -29,7 +29,9 @@ void MPQManager::load(std::vector<std::string> files)
 {
 	_logger.information("Loading list of MPQ's");
 	std::string temp;
+	std::string file;
 	int digitCount;
+	system("pause");
 	for (auto it = files.rbegin(); it != files.rend(); ++it)
 	{
 		Path path(*it);
@@ -39,20 +41,22 @@ void MPQManager::load(std::vector<std::string> files)
 		int count = 0;
 		for (auto itFiles = filesList.begin(); itFiles != filesList.end(); ++itFiles)
 		{
-			_logger.debug("Handling file: %s", *itFiles);
-			if (_mapFiles.find(*itFiles) == _mapFiles.end())
+			_logger.debug("Handling file: %s (%s)", *itFiles, *it);
+			
+			file.assign(Poco::toLower(*itFiles));
+			if (!_mapFiles.count(file))
 			{ 
 				// Add file in our map if it's not there already.
-				_mapFiles.insert(make_pair(*itFiles, mpq));
-				if (Poco::endsWith(*itFiles, mpq->EXT_DBC))
+				_mapFiles[file] = mpq;
+				if (Poco::endsWith(file, mpq->EXT_DBC))
 				{
-					_dbcs.push_back(*itFiles);
+					_dbcs.push_back(file);
 				}
-				if (Poco::endsWith(*itFiles, mpq->EXT_WMO))
+				if (Poco::endsWith(file, mpq->EXT_WMO))
 				{
 					// We've a WMO, let's check if that's a root one and add it to our list if that's the case.
 					digitCount = 0;
-					temp.assign((*itFiles).substr(0, (*itFiles).find_last_of(".")));
+					temp.assign((file).substr(0, (file).find_last_of(".")));
 					reverse(temp.begin(), temp.end());
 					for (int i = 0; i < 3; i++)
 					{
@@ -66,7 +70,7 @@ void MPQManager::load(std::vector<std::string> files)
 
 					if (digitCount < 3)
 					{
-						_wmos.push_back(*itFiles);
+						_wmos.push_back(file);
 					}
 				}
 				count++;
@@ -95,6 +99,7 @@ std::vector<std::string> MPQManager::getWMOList()
 
 bool MPQManager::extractFile(std::string file, std::string path)
 {
+	file = Poco::toLower(file);
 	auto it = _mapFiles.find(file);
 	if (it != _mapFiles.end())
 	{
@@ -104,7 +109,8 @@ bool MPQManager::extractFile(std::string file, std::string path)
 }
 
 MPQFile* MPQManager::getFile(std::string file, Version version)
-{
+{	
+	file = Poco::toLower(file);
 	auto it = _mapFiles.find(file);
 	if (it != _mapFiles.end())
 	{

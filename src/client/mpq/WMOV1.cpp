@@ -38,7 +38,7 @@ WMOV1::~WMOV1()
 
 bool WMOV1::parse()
 {
-	_logger.information("Parsing WMO file %s", _name);
+	_logger.debug("Parsing WMO file %s", _name);
 
 	unsigned int offset = 0;
 
@@ -242,4 +242,211 @@ bool WMOV1::parse()
 	}
 
 	return true;
+}
+
+unsigned int WMOV1::getNGroups()
+{
+	return _header->nGroups;
+}
+
+unsigned int WMOV1::getWMOID()
+{
+	return _header->wmoID;
+}
+
+WMOGroupV1::WMOGroupV1(std::string name, unsigned char* data, long size)
+{
+	_name = name;
+	_size = size;
+	_data = data;
+}
+
+WMOGroupV1::~WMOGroupV1()
+{
+	delete _data;
+}
+
+bool WMOGroupV1::parse()
+{
+	_logger.information("Parsing WMO Group file %s", _name);
+
+	unsigned int offset = 0;
+
+	_version = (Version*)(_data);
+
+	if (!checkHeader(_version->magic, HEADER_MVER))
+	{
+		return false;
+	}
+
+	if (_version->version != SUPPORTED_VERSION)
+	{
+		_logger.error("Expected file version %u, got %i", SUPPORTED_VERSION, _version->version);
+		return false;
+	}
+
+	offset = 8 + _version->size;
+
+	_group = (MOGP*)(_data + offset);
+
+	if (!checkHeader(_group->magic, HEADER_MOGP))
+	{
+		return false;
+	}
+
+	offset += 8 + sizeof(MOGP::GroupInfo);
+
+	MOPY* mopy = (MOPY*)(_data + offset);
+
+	if (!checkHeader(mopy->magic, HEADER_MOPY))
+	{
+		return false;
+	}
+
+	_offsetMOPY = offset;
+	offset += 8 + mopy->size;
+
+	MOVI* movi = (MOVI*)(_data + offset);
+
+	if (!checkHeader(movi->magic, HEADER_MOVI))
+	{
+		return false;
+	}
+
+	_offsetMOVI = offset;
+	offset += 8 + movi->size;
+
+	MOVT* movt = (MOVT*)(_data + offset);
+
+	if (!checkHeader(movt->magic, HEADER_MOVT))
+	{
+		return false;
+	}
+
+	_offsetMOVT = offset;
+	offset += 8 + movt->size;
+
+	MONR* monr = (MONR*)(_data + offset);
+
+	if (!checkHeader(monr->magic, HEADER_MONR))
+	{
+		return false;
+	}
+
+	_offsetMONR = offset;
+	offset += 8 + monr->size;
+
+	MOTV* motv = (MOTV*)(_data + offset);
+
+	if (!checkHeader(motv->magic, HEADER_MOTV))
+	{
+		return false;
+	}
+
+	_offsetMOTV = offset;
+	offset += 8 + motv->size;
+
+	MOBA* moba = (MOBA*)(_data + offset);
+
+	if (!checkHeader(moba->magic, HEADER_MOBA))
+	{
+		return false;
+	}
+
+	_offsetMOBA = offset;
+	offset += 8 + moba->size;
+
+	if (_group->info.flags & HAS_LIGHT)
+	{
+		MOLR* molr = (MOLR*)(_data + offset);
+
+		if (!checkHeader(molr->magic, HEADER_MOLR))
+		{
+			return false;
+		}
+
+		_offsetMOLR = offset;
+		offset += 8 + molr->size;
+	}
+
+	if (_group->info.flags & HAS_DOODADS)
+	{
+		MODR* modr = (MODR*)(_data + offset);
+
+		if (!checkHeader(modr->magic, HEADER_MODR))
+		{
+			return false;
+		}
+
+		_offsetMODR = offset;
+		offset += 8 + modr->size;
+	}
+
+	if (_group->info.flags & HAS_BSP_TREE)
+	{
+		MOBN* mobn = (MOBN*)(_data + offset);
+
+		if (!checkHeader(mobn->magic, HEADER_MOBN))
+		{
+			return false;
+		}
+
+		_offsetMOBN = offset;
+		offset += 8 + mobn->size;
+
+		MOBR* mobr = (MOBR*)(_data + offset);
+
+		if (!checkHeader(mobr->magic, HEADER_MOBR))
+		{
+			return false;
+		}
+
+		_offsetMOBR = offset;
+		offset += 8 + mobr->size;
+	}
+
+	if (_group->info.flags & HAS_VERTEX_COLORS)
+	{
+		MOCV* mocv = (MOCV*)(_data + offset);
+
+		if (!checkHeader(mocv->magic, HEADER_MOCV))
+		{
+			return false;
+		}
+
+		_offsetMOCV = offset;
+		offset += 8 + mocv->size;
+	}
+
+	if (_group->info.flags & HAS_LIQUID)
+	{
+		MLIQ* mliq = (MLIQ*)(_data + offset);
+
+		if (!checkHeader(mliq->magic, HEADER_MLIQ))
+		{
+			return false;
+		}
+
+		_offsetMLIQ = offset;
+		offset += 8 + mliq->size;
+	}
+
+	if (_group->info.flags & HAS_TRIANGLESTRIP)
+	{
+		MORI* mori = (MORI*)(_data + offset);
+
+		if (!checkHeader(mori->magic, HEADER_MORI))
+		{
+			return false;
+		}
+
+		_offsetMORI = offset;
+	}
+
+	return true;
+}
+
+bool WMOGroupV1::hasLiquid()
+{
+	return _group->info.flags & HAS_LIQUID;
 }
