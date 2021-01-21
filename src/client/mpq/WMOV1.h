@@ -285,6 +285,7 @@ public:
 	bool parse();
 	unsigned int getNGroups();
 	unsigned int getWMOID();
+	bool useLiquidTypeFromDBC();
 
 private:
 	enum WMOHeaderFlags {
@@ -397,6 +398,39 @@ private:
 };
 
 // Here starts WMOGroup content
+
+struct MOGP {
+	char magic[4];
+	unsigned int size;
+	struct GroupInfo {
+		unsigned int groupName;
+		unsigned int descriptiveGroupName;
+		unsigned int flags;
+		struct {
+			struct {
+				float x;
+				float y;
+				float z;
+			} min;
+			struct {
+				float x;
+				float y;
+				float z;
+			} max;
+		} boundingBox;
+		unsigned short portalStart;
+		unsigned short portalCount;
+		unsigned short transBatchCount;
+		unsigned short intBatchCount;
+		unsigned short extBatchCount;
+		unsigned short padding;
+		unsigned char fogsIds[4];
+		unsigned int groupLiquid;
+		unsigned int wmoAreaTableRecId;
+		unsigned int flags2;
+		unsigned int unused;
+	} info;
+};
 
 enum PolyFlags {
 	UNK1 = 0x1,
@@ -531,7 +565,7 @@ struct MLIQ {
 			float z;
 		} baseCoords;
 		unsigned short materialId;
-	};
+	} header;
 };
 
 // Liquid vertices comes at the end of MLIQ chunk
@@ -578,7 +612,23 @@ class WMOGroupV1 : public MPQFile
 		~WMOGroupV1();
 		bool parse();
 		bool hasLiquid();
+		bool tileHasNoLiquid(unsigned int idx);
+		bool tileIsWater(unsigned int idx);
+		bool tileIsOcean(unsigned int idx);
+		bool tileIsMagma(unsigned int idx);
+		bool tileIsSlime(unsigned int idx);
+
+		MOGP::GroupInfo * getGroupInfo();
+		MOBA* getBatchInfo();
+		MOPY* getPolyInfo();
+		MOVI* getVertexIndices();
+		MOVT* getVertexInfo();
+		MLIQ* getLiquidInfo();
+		LiquidVert* getLiquidVertices();
+		LiquidTile* getLiquidFlags();
 	private:
+		LiquidTile* getLiquidTile(unsigned int idx);
+
 		/** File version - REVM chunk */
 		const std::string HEADER_MVER = "REVM";
 		static const unsigned int SUPPORTED_VERSION = 17;
@@ -631,36 +681,7 @@ class WMOGroupV1 : public MPQFile
 			MASK_HAS_LIQUID = 0x0F
 		};
 
-		struct MOGP {
-			char magic[4];
-			unsigned int size;
-			struct GroupInfo {
-				unsigned int groupName;
-				unsigned int descriptiveGroupName;
-				unsigned int flags;
-				struct {
-					struct {
-						float x;
-						float y;
-						float z;
-					} min;
-					struct {
-						float x;
-						float y;
-						float z;
-					} max;
-				} boundingBox;
-				unsigned short portalStart;
-				unsigned short portalCount;
-				unsigned short transBatchCount;
-				unsigned short intBatchCount;
-				unsigned short extBatchCount;
-				unsigned short padding;
-				unsigned char fogsIds[4];
-				unsigned int groupLiquid;
-				unsigned int wmoAreaTableRecId;
-			} info;
-		} * _group;
+		MOGP * _group;
 		
 		/** MOPY chunk */
 		const std::string HEADER_MOPY = "YPOM";

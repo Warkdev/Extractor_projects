@@ -39,6 +39,30 @@ WMOFile::WMOFile(std::string directory, std::string hash, std::string filename) 
 
 WMOFile::~WMOFile()
 {
+    for (int i = 0; i < header.nGroups; i++)
+    {
+        if (groups[i].header.mobaBatch)
+        {
+            delete groups[i].header.mobaEx;
+        }
+        if (groups[i].vertices.nVertices)
+        {
+            delete groups[i].vertices.vertices;
+        }
+        if (groups[i].indices.nIndices)
+        {
+            delete groups[i].indices.indices;
+        }
+        if(groups[i].liquid.height)
+        {
+            delete groups[i].liquid.height;
+        }
+        if(groups[i].liquid.flags)
+        {
+            delete groups[i].liquid.flags;
+        }
+    }
+    delete groups;
 }
 
 bool WMOFile::save(std::string path)
@@ -56,6 +80,63 @@ bool WMOFile::save(std::string path)
     writer.writeRaw(header.magic, 4);
     writer.writeRaw(header.versionMagic, 4);
     writer << header.nVectors << header.nGroups << header.rootWMOID;
+
+    // Writing the groups.
+    for (int i = 0; i < header.nGroups; i++)
+    {
+        writer << groups[i].flags << groups[i].groupWMOID
+            << groups[i].boundingBox.min.x << groups[i].boundingBox.min.y << groups[i].boundingBox.min.z
+            << groups[i].boundingBox.max.x << groups[i].boundingBox.max.y << groups[i].boundingBox.max.z
+            << groups[i].liquidFlags;
+
+        // Group Header.
+        writer.writeRaw(groups[i].header.magic, 4);
+        writer << groups[i].header.mobaSize << groups[i].header.mobaBatch;
+        for(int j = 0; j < (groups[i].header.mobaBatch); j++)
+        {
+            writer << groups[i].header.mobaEx[j];
+        }
+
+        // Indices.
+        writer.writeRaw(groups[i].indices.magic, 4);
+        writer << groups[i].indices.size << groups[i].indices.nIndices;
+        for (int j = 0; j < groups[i].indices.nIndices; j++)
+        {
+            writer << groups[i].indices.indices[j];
+        }
+
+        // Vertices.
+        writer.writeRaw(groups[i].vertices.magic, 4);
+        writer << groups[i].vertices.size << groups[i].vertices.nVertices;
+        for (int j = 0; j < groups[i].vertices.nVertices; j++)
+        {
+            writer << groups[i].vertices.vertices[j].x << groups[i].vertices.vertices[j].y << groups[i].vertices.vertices[j].z;
+        }
+
+        // Liquid.
+        if (groups[i].liquid.size > 0)
+        {
+            writer.writeRaw(groups[i].liquid.magic, 4);
+            writer << groups[i].liquid.size;
+
+            writer << groups[i].liquid.xVerts << groups[i].liquid.yVerts
+                << groups[i].liquid.xTiles << groups[i].liquid.yTiles
+                << groups[i].liquid.baseCoords.x << groups[i].liquid.baseCoords.y << groups[i].liquid.baseCoords.z
+                << groups[i].liquid.type;
+
+            // Liquid vertices
+            for (int j = 0; j < (groups[i].liquid.xVerts * groups[i].liquid.yVerts); j++)
+            {
+                writer << groups[i].liquid.height[j];
+            }
+
+            // Liquid flags for tiles
+            for (int j = 0; j < (groups[i].liquid.xTiles * groups[i].liquid.yTiles); j++)
+            {
+                writer << groups[i].liquid.flags[j];
+            }
+        }
+    }
 
     stream.close();
 

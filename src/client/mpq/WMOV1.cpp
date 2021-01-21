@@ -254,6 +254,13 @@ unsigned int WMOV1::getWMOID()
 	return _header->wmoID;
 }
 
+bool WMOV1::useLiquidTypeFromDBC()
+{
+	return _header->flags & USE_LIQUID_FROM_DBC;
+}
+
+// WMOGroup handling.
+
 WMOGroupV1::WMOGroupV1(std::string name, unsigned char* data, long size)
 {
 	_name = name;
@@ -268,7 +275,7 @@ WMOGroupV1::~WMOGroupV1()
 
 bool WMOGroupV1::parse()
 {
-	_logger.information("Parsing WMO Group file %s", _name);
+	_logger.debug("Parsing WMO Group file %s", _name);
 
 	unsigned int offset = 0;
 
@@ -449,4 +456,98 @@ bool WMOGroupV1::parse()
 bool WMOGroupV1::hasLiquid()
 {
 	return _group->info.flags & HAS_LIQUID;
+}
+
+MOGP::GroupInfo * WMOGroupV1::getGroupInfo()
+{
+	return &(_group->info);
+}
+
+MOBA* WMOGroupV1::getBatchInfo()
+{
+	return (MOBA*)(_data + _offsetMOBA);
+}
+
+MOPY* WMOGroupV1::getPolyInfo()
+{
+	return (MOPY*)(_data + _offsetMOPY);
+}
+
+MOVI* WMOGroupV1::getVertexIndices()
+{
+	return (MOVI*)(_data + _offsetMOVI);
+}
+
+MOVT* WMOGroupV1::getVertexInfo()
+{
+	return (MOVT*)(_data + _offsetMOVT);
+}
+
+MLIQ* WMOGroupV1::getLiquidInfo()
+{
+	if (_offsetMLIQ)
+	{
+		return (MLIQ*)(_data + _offsetMLIQ);
+	}
+
+	return NULL;
+}
+
+bool WMOGroupV1::tileHasNoLiquid(unsigned int idx)
+{
+	LiquidTile* tile = getLiquidTile(idx);
+	return (tile ? tile->flag & MASK_NO_LIQUID : false);
+}
+
+bool WMOGroupV1::tileIsWater(unsigned int idx)
+{
+	LiquidTile* tile = getLiquidTile(idx);
+	return (tile ? !(tile->flag & MASK_NO_LIQUID) && tile->flag & IS_WATER : false);
+}
+
+bool WMOGroupV1::tileIsOcean(unsigned int idx)
+{
+	LiquidTile* tile = getLiquidTile(idx);
+	return (tile ? !(tile->flag & MASK_NO_LIQUID) && tile->flag & IS_OCEAN : false);
+}
+
+bool WMOGroupV1::tileIsMagma(unsigned int idx)
+{
+	LiquidTile* tile = getLiquidTile(idx);
+	return (tile ? !(tile->flag & MASK_NO_LIQUID) && tile->flag & IS_MAGMA : false);
+}
+
+bool WMOGroupV1::tileIsSlime(unsigned int idx)
+{
+	LiquidTile* tile = getLiquidTile(idx);
+	return (tile ? !(tile->flag & MASK_NO_LIQUID) && tile->flag & IS_SLIME : false);
+}
+
+LiquidTile* WMOGroupV1::getLiquidTile(unsigned int idx)
+{
+	MLIQ* liquidInfo = getLiquidInfo();
+	if (!liquidInfo)
+	{
+		return NULL;
+	}
+	unsigned int liquidVertexSize = liquidInfo->header.xVerts * liquidInfo->header.yVerts * sizeof(LiquidVert);
+	unsigned int offset = idx * sizeof(unsigned short);
+
+	return (LiquidTile*) (8 + (unsigned char*)liquidInfo + sizeof(MLIQ::Header) + liquidVertexSize + offset);
+}
+
+LiquidVert* WMOGroupV1::getLiquidVertices()
+{
+	MLIQ* liquidInfo = getLiquidInfo();
+	if (!liquidInfo)
+	{
+		return NULL;
+	}
+
+	return (LiquidVert*)(8 + (unsigned char*)liquidInfo + sizeof(MLIQ::Header));
+}
+
+LiquidTile* WMOGroupV1::getLiquidFlags()
+{
+	return getLiquidTile(0);
 }

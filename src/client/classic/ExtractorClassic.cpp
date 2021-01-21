@@ -67,7 +67,7 @@ void ExtractorClassic::extract(std::string outputPath, bool exportMap, bool gene
 
     if (generateVmaps)
     {
-        readLiquidType();
+        //readLiquidType();
         exportWMOs(outputPath);
     }
 }
@@ -364,6 +364,8 @@ void ExtractorClassic::exportWMOs(std::string outputPath)
     MD5Engine engine;
     DigestOutputStream ds(engine);
     char groupFile[1024];
+    unsigned int count = 0;
+    unsigned int total = (unsigned int) wmos.size();
 
     for (auto it = wmos.begin(); it < wmos.end(); ++it)
     {
@@ -401,14 +403,14 @@ void ExtractorClassic::exportWMOs(std::string outputPath)
                 continue;
             }
 
-            if (!wmo->parse())
+            if (!group->parse())
             {
-                _logger.error("Error while parsong the WMO Group file %s", std::string(groupFile));
+                _logger.error("Error while parsing the WMO Group file %s", std::string(groupFile));
                 delete group;
                 continue;
             }
 
-            convertWMOGroup(group, wmoFile, preciseVectorData);
+            convertWMOGroup(wmo, group, wmoFile, i, preciseVectorData);
 
             delete group;
         }
@@ -419,25 +421,121 @@ void ExtractorClassic::exportWMOs(std::string outputPath)
             delete wmoFile;
         }
 
+        // We use printf here because there's no known way to do it with Poco.
+        count++;
+        printf(" Processing........................%d%%\r", (100 * (count + 1)) / total);
+
         delete wmo;
     }
 
     ds.close();
+
+    _logger.information("Extraction complete");
+
     if (cacheToDisk)
     {
-        file.remove(true);
+        //file.remove(true);
     }
 }
 
 bool ExtractorClassic::convertWMORoot(WMOV1* wmo, WMOFile* file)
 {
-    strncpy(file->header.versionMagic, "z070", 4);
+    strncpy(file->header.versionMagic, "z07\0", 4);
     file->header.nGroups = wmo->getNGroups();
     file->header.rootWMOID = wmo->getWMOID();
+    file->groups = new WMOFile::VmapGroup[wmo->getNGroups()];
     return true;
 }
 
-bool ExtractorClassic::convertWMOGroup(WMOGroupV1* wmoGroup, WMOFile* file, bool preciseVectorData)
+bool ExtractorClassic::convertWMOGroup(WMOV1* root, WMOGroupV1* wmoGroup, WMOFile* file, unsigned int groupIdx, bool preciseVectorData)
 {
+    int nColTriangles = 0;
+
+    MOGP::GroupInfo* info = wmoGroup->getGroupInfo();
+    MOBA* batchInfo = wmoGroup->getBatchInfo();
+    MOPY* polyInfo = wmoGroup->getPolyInfo();
+    MOVI* vertexIndices = wmoGroup->getVertexIndices();
+    MOVT* vertexInfo = wmoGroup->getVertexInfo();
+    WMOFile::VmapGroup* group = &(file->groups[groupIdx]);
+
+    // Source:: MOGP
+    group->flags = info->flags;
+    group->groupWMOID = info->wmoAreaTableRecId;
+    group->boundingBox.min.x = info->boundingBox.min.x;
+    group->boundingBox.min.y = info->boundingBox.min.y;
+    group->boundingBox.min.z = info->boundingBox.min.z;
+    group->boundingBox.max.x = info->boundingBox.max.x;
+    group->boundingBox.max.y = info->boundingBox.max.y;
+    group->boundingBox.max.z = info->boundingBox.max.z;
+    group->liquidFlags = 0;
+
+    // Source: MOBA
+    group->header.mobaBatch = batchInfo->size / sizeof(MOBA::Batch);
+    group->header.mobaSize = (group->header.mobaBatch * 4) + 4;
+    group->header.mobaEx = new unsigned int[group->header.mobaSize - 4];
+
+    // Dunno what this code is used for. It obviously export some batch info but it's not used.
+    for (int i = 0; i < group->header.mobaBatch; i++)
+    {
+        group->header.mobaEx[0] = batchInfo->batches[i].bx;
+        group->header.mobaEx[1] = batchInfo->batches[i].by;
+        group->header.mobaEx[2] = batchInfo->batches[i].bz;
+        group->header.mobaEx[3] = 0;
+    }
+
+    if (preciseVectorData)
+    {
+        file->header.nVectors += polyInfo->size / sizeof(unsigned short);
+        // Source: MOPY
+        group->indices.nIndices = polyInfo->size / sizeof(unsigned short) * 3;
+        group->indices.size = sizeof(unsigned int) + (sizeof(unsigned short) * group->indices.nIndices);
+        group->indices.indices = new unsigned short[group->indices.nIndices];
+        memcpy(group->indices.indices, vertexIndices->indexes, group->indices.nIndices * sizeof(unsigned short));
+
+        // Source: MOVT
+        group->vertices.nVertices = vertexInfo->size / sizeof(MOVT::Vertex);
+        group->vertices.size = sizeof(unsigned int) + vertexInfo->size;
+        group->vertices.vertices = new WMOFile::VmapGroup::Vertices::Vertex[group->vertices.nVertices];
+        memcpy(group->vertices.vertices, vertexInfo->vertices, group->vertices.nVertices * sizeof(WMOFile::VmapGroup::Vertices::Vertex));
+    }
+    else {
+
+    }
+
+    if (wmoGroup->hasLiquid())
+    {
+        MLIQ* liquidInfo = wmoGroup->getLiquidInfo();
+        LiquidVert* liquidVertices = wmoGroup->getLiquidVertices();
+        group->liquidFlags |= 1;
+        group->liquid.size = sizeof(MLIQ::Header) + (sizeof(LiquidVert) * liquidInfo->header.xVerts * liquidInfo->header.yVerts);
+        group->liquid.xVerts = liquidInfo->header.xVerts;
+        group->liquid.yVerts = liquidInfo->header.yVerts;
+        group->liquid.xTiles = liquidInfo->header.xTiles;
+        group->liquid.yTiles = liquidInfo->header.yTiles;
+        group->liquid.baseCoords.x = liquidInfo->header.baseCoords.x;
+        group->liquid.baseCoords.y = liquidInfo->header.baseCoords.y;
+        group->liquid.baseCoords.z = liquidInfo->header.baseCoords.z;
+
+        unsigned int liquidVertexSize = group->liquid.xVerts * group->liquid.yVerts;
+        unsigned int liquidFlagsSize = group->liquid.xTiles * group->liquid.yTiles;
+
+        if (root->useLiquidTypeFromDBC())
+        {
+            group->liquid.type = info->groupLiquid;
+        }
+        else {
+            group->liquid.type = 0; // To be checked because the initial formula seems weird.
+        }
+
+
+        group->liquid.height = new float[liquidVertexSize];
+        for (int i = 0; i < liquidVertexSize; i++)
+        {
+            group->liquid.height[i] = liquidVertices[i].height;
+        }
+        group->liquid.flags = new unsigned char[liquidFlagsSize];
+        memcpy(group->liquid.flags, wmoGroup->getLiquidFlags(), liquidFlagsSize);
+    }
+
     return true;
 }

@@ -67,43 +67,43 @@ public:
 		unsigned int liquidFlags = 0;
 		struct {
 			const char magic[4] = { 'G', 'R', 'P', ' ' };
-			unsigned int mobaSize;		// MOBA size / 2
-			unsigned int mobaBatch;		// mobaSize / 12. WTF are these dudes doing ?! 12 is the size of a MOBA record.
-			unsigned int * mobaEx;		// Dynamic size, mobaSize but with a padding of 12 each time.. these guys.. Matches bx/by/startIdx from MOBA chunk.
+			unsigned int mobaSize;		// moba_batch * 4 + 4. moba_batch = moba_size / 12. moba_size = size of MOBA chunk / 2. Let's make it complex and stupid :)
+			unsigned int mobaBatch = 0;		// mobaSize / 24 (the size of a batch).
+			unsigned int * mobaEx = NULL;		// Dynamic size, match the amount of mobaBatch.
 		} header;
 		struct {
 			const char magic[4] = { 'I', 'N', 'D', 'X' };
 			unsigned int size;			// sizeof(int) + (sizeof(short) * nIndices)
-			unsigned int nIndices;		// nTriangles * 3. nTriangles being (MOPY size / 2)
-			unsigned short * indices;	// Dynamic size - nIndices.
+			unsigned int nIndices = 0;		// nTriangles * 3. nTriangles being (MOPY size / 2)
+			unsigned short * indices = NULL;	// Dynamic size - nIndices.
 		} indices;
-		struct {
+		struct Vertices {
 			const char magic[4] = { 'V', 'E', 'R', 'T' };
 			unsigned int size;			// sizeof(int) + (sizeof(float) * 3 * nVertices)
-			unsigned int nVertices;		// nVertices. nVertices being (MOVT size / 12)
-			struct {
+			unsigned int nVertices = 0;		// nVertices. nVertices being (MOVT size / 12)
+			struct Vertex {
 				float x;
 				float y;
 				float z;
-			} * vertices;				// Dynamic size - nVertices.
+			} * vertices = NULL;				// Dynamic size - nVertices.
 		} vertices;
 		struct {
 			const char magic[4] = { 'L', 'I', 'Q', 'U' };
-			unsigned int size;			// sizeof(MLIQ::Header) + (sizeof(liquidVert) * xVerts * yVerts);
-			unsigned int xVerts;
-			unsigned int yVerts;
-			unsigned int xTiles;
-			unsigned int yTiles;
+			unsigned int size = 0;			// sizeof(MLIQ::Header) + (sizeof(liquidVert) * xVerts * yVerts);
+			unsigned int xVerts = 0;
+			unsigned int yVerts = 0;
+			unsigned int xTiles = 0;
+			unsigned int yTiles = 0;
 			struct {
 				float x;
 				float y;
 				float z;
 			} baseCoords;
 			unsigned short type;
-			float * height;			// Dynamic size (xVerts * yVerts)
-			unsigned char * flags;	// Dynamic size (xTiles * yTiles)
+			float * height = NULL;			// Dynamic size (xVerts * yVerts)
+			unsigned char * flags = NULL;	// Dynamic size (xTiles * yTiles)
 		} liquid;
-	} group;
+	} * groups = NULL; // Dynamic size, depends on the amount of groups.
 
 private:
 	const std::string PATTERN_WMO = "%s-%s"; // hash-filename (including .wmo)

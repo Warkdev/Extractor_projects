@@ -48,7 +48,7 @@ class ExtractorClassic : public Extractor
 		void handleHoles(MapFile* map, MCNK* cell, unsigned int i, unsigned int j);
 
 		bool convertWMORoot(WMOV1* wmo, WMOFile* file);
-		bool convertWMOGroup(WMOGroupV1* wmoGroup, WMOFile* file, bool preciseVectorData);
+		bool convertWMOGroup(WMOV1* root, WMOGroupV1* wmoGroup, WMOFile* file, unsigned int groupIdx, bool preciseVectorData);
 		
 	private:
 		const std::string PATTERN_WDT = "World\\Maps\\%s\\%s.wdt";
