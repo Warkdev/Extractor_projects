@@ -31,7 +31,6 @@ void MPQManager::load(std::vector<std::string> files)
 	std::string temp;
 	std::string file;
 	int digitCount;
-	system("pause");
 	for (auto it = files.rbegin(); it != files.rend(); ++it)
 	{
 		Path path(*it);

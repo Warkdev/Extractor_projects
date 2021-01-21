@@ -612,6 +612,8 @@ class WMOGroupV1 : public MPQFile
 		~WMOGroupV1();
 		bool parse();
 		bool hasLiquid();
+
+		unsigned int getAreaTableId();
 		bool tileHasNoLiquid(unsigned int idx);
 		bool tileIsWater(unsigned int idx);
 		bool tileIsOcean(unsigned int idx);

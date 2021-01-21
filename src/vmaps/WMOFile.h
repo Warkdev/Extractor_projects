@@ -38,6 +38,7 @@ public:
 	~WMOFile();
 
 	bool save(std::string path);
+	std::string getFilename();
 
 	/** VMap File Header */
 	struct VmapHeader {

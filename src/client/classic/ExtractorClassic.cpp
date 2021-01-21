@@ -449,8 +449,6 @@ bool ExtractorClassic::convertWMORoot(WMOV1* wmo, WMOFile* file)
 
 bool ExtractorClassic::convertWMOGroup(WMOV1* root, WMOGroupV1* wmoGroup, WMOFile* file, unsigned int groupIdx, bool preciseVectorData)
 {
-    int nColTriangles = 0;
-
     MOGP::GroupInfo* info = wmoGroup->getGroupInfo();
     MOBA* batchInfo = wmoGroup->getBatchInfo();
     MOPY* polyInfo = wmoGroup->getPolyInfo();
@@ -472,15 +470,12 @@ bool ExtractorClassic::convertWMOGroup(WMOV1* root, WMOGroupV1* wmoGroup, WMOFil
     // Source: MOBA
     group->header.mobaBatch = batchInfo->size / sizeof(MOBA::Batch);
     group->header.mobaSize = (group->header.mobaBatch * 4) + 4;
-    group->header.mobaEx = new unsigned int[group->header.mobaSize - 4];
+    group->header.mobaEx = new unsigned int[group->header.mobaBatch];
 
-    // Dunno what this code is used for. It obviously export some batch info but it's not used.
+    unsigned int k = 0;
     for (int i = 0; i < group->header.mobaBatch; i++)
     {
-        group->header.mobaEx[0] = batchInfo->batches[i].bx;
-        group->header.mobaEx[1] = batchInfo->batches[i].by;
-        group->header.mobaEx[2] = batchInfo->batches[i].bz;
-        group->header.mobaEx[3] = 0;
+        group->header.mobaEx[k++] = batchInfo->batches[i].count;
     }
 
     if (preciseVectorData)
@@ -507,7 +502,7 @@ bool ExtractorClassic::convertWMOGroup(WMOV1* root, WMOGroupV1* wmoGroup, WMOFil
         MLIQ* liquidInfo = wmoGroup->getLiquidInfo();
         LiquidVert* liquidVertices = wmoGroup->getLiquidVertices();
         group->liquidFlags |= 1;
-        group->liquid.size = sizeof(MLIQ::Header) + (sizeof(LiquidVert) * liquidInfo->header.xVerts * liquidInfo->header.yVerts);
+        group->liquid.size = sizeof(MLIQ::Header) + (sizeof(LiquidVert) * liquidInfo->header.xVerts * liquidInfo->header.yVerts) + (liquidInfo->header.xTiles * liquidInfo->header.yTiles);
         group->liquid.xVerts = liquidInfo->header.xVerts;
         group->liquid.yVerts = liquidInfo->header.yVerts;
         group->liquid.xTiles = liquidInfo->header.xTiles;
@@ -524,7 +519,37 @@ bool ExtractorClassic::convertWMOGroup(WMOV1* root, WMOGroupV1* wmoGroup, WMOFil
             group->liquid.type = info->groupLiquid;
         }
         else {
-            group->liquid.type = 0; // To be checked because the initial formula seems weird.
+            // Trying to determine the liquid type by parsing the flag tiles. The first one having a type wins.
+            for (int i = 0; i < liquidFlagsSize; i++)
+            {
+                if (wmoGroup->tileIsWater(i))
+                {
+                    group->liquid.type = IS_WATER + 1;
+                    break;
+                }
+                else if (wmoGroup->tileIsOcean(i))
+                {
+                    group->liquid.type = IS_OCEAN + 1;
+                    break;
+                }
+                else if (wmoGroup->tileIsMagma(i))
+                {
+                    group->liquid.type = IS_MAGMA + 1;
+                    break;
+                }
+                else if (wmoGroup->tileIsSlime(i))
+                {
+                    if (root->getWMOID() == 4489) // Naxxramas
+                    {
+                        group->liquid.type = 21;
+                    }
+                    else 
+                    {
+                        group->liquid.type = IS_SLIME + 1;
+                    }
+                    break;
+                }
+            }
         }
 
 

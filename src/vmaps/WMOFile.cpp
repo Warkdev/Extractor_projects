@@ -142,3 +142,8 @@ bool WMOFile::save(std::string path)
 
     return true;
 }
+
+std::string WMOFile::getFilename()
+{
+    return _filename;
+}

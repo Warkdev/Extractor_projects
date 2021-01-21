@@ -458,6 +458,11 @@ bool WMOGroupV1::hasLiquid()
 	return _group->info.flags & HAS_LIQUID;
 }
 
+unsigned int WMOGroupV1::getAreaTableId()
+{
+	return _group->info.wmoAreaTableRecId;
+}
+
 MOGP::GroupInfo * WMOGroupV1::getGroupInfo()
 {
 	return &(_group->info);
@@ -496,31 +501,31 @@ MLIQ* WMOGroupV1::getLiquidInfo()
 bool WMOGroupV1::tileHasNoLiquid(unsigned int idx)
 {
 	LiquidTile* tile = getLiquidTile(idx);
-	return (tile ? tile->flag & MASK_NO_LIQUID : false);
+	return (tile ? (tile->flag & MASK_NO_LIQUID) == MASK_NO_LIQUID : false);
 }
 
 bool WMOGroupV1::tileIsWater(unsigned int idx)
 {
 	LiquidTile* tile = getLiquidTile(idx);
-	return (tile ? !(tile->flag & MASK_NO_LIQUID) && tile->flag & IS_WATER : false);
+	return (tile ? (tile->flag & MASK_NO_LIQUID) != MASK_NO_LIQUID && (tile->flag & MASK_LIQUID) == IS_WATER : false);
 }
 
 bool WMOGroupV1::tileIsOcean(unsigned int idx)
 {
 	LiquidTile* tile = getLiquidTile(idx);
-	return (tile ? !(tile->flag & MASK_NO_LIQUID) && tile->flag & IS_OCEAN : false);
+	return (tile ? (tile->flag & MASK_NO_LIQUID) != MASK_NO_LIQUID && (tile->flag & MASK_LIQUID) == IS_OCEAN : false);
 }
 
 bool WMOGroupV1::tileIsMagma(unsigned int idx)
 {
 	LiquidTile* tile = getLiquidTile(idx);
-	return (tile ? !(tile->flag & MASK_NO_LIQUID) && tile->flag & IS_MAGMA : false);
+	return (tile ? (tile->flag & MASK_NO_LIQUID) != MASK_NO_LIQUID && (tile->flag & MASK_LIQUID) == IS_MAGMA : false);
 }
 
 bool WMOGroupV1::tileIsSlime(unsigned int idx)
 {
 	LiquidTile* tile = getLiquidTile(idx);
-	return (tile ? !(tile->flag & MASK_NO_LIQUID) && tile->flag & IS_SLIME : false);
+	return (tile ? (tile->flag & MASK_NO_LIQUID) != MASK_NO_LIQUID && (tile->flag & MASK_LIQUID) == IS_SLIME : false);
 }
 
 LiquidTile* WMOGroupV1::getLiquidTile(unsigned int idx)
@@ -531,7 +536,7 @@ LiquidTile* WMOGroupV1::getLiquidTile(unsigned int idx)
 		return NULL;
 	}
 	unsigned int liquidVertexSize = liquidInfo->header.xVerts * liquidInfo->header.yVerts * sizeof(LiquidVert);
-	unsigned int offset = idx * sizeof(unsigned short);
+	unsigned int offset = idx * sizeof(unsigned char);
 
 	return (LiquidTile*) (8 + (unsigned char*)liquidInfo + sizeof(MLIQ::Header) + liquidVertexSize + offset);
 }
