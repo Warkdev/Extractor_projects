@@ -28,21 +28,140 @@
 
 using Poco::Logger;
 
-class M2 : public MPQFile
+template<typename T>
+struct M2Array
+{
+	unsigned int size;
+	unsigned int offset;
+};
+
+struct M2TrackBase
+{
+	unsigned short interpolationType;
+	unsigned short globalSequence;
+	M2Array<std::pair<unsigned int, unsigned int>> interpolationRanges;
+	M2Array<unsigned int> timestamps;
+};
+
+template<typename T>
+struct M2Track : M2TrackBase
+{
+	M2Array<T> values;
+};
+
+struct M2Loop
+{
+
+};
+
+struct M2Sequence
+{
+
+};
+
+struct M2CompBone
+{
+
+};
+
+struct M2Vertex
+{
+
+};
+
+struct M2SkinProfile
+{
+
+};
+
+struct M2Color
+{
+
+};
+
+struct M2Texture
+{
+
+};
+
+struct M2TextureWeight
+{
+
+};
+
+struct M2TextureTransform
+{
+
+};
+
+struct M2Material
+{
+
+};
+
+struct M2Attachment
+{
+	unsigned int id;
+	unsigned short bone;
+	unsigned short unknown;
+	struct {
+		float x;
+		float y;
+		float z;
+	} position;
+};
+
+struct M2Event
+{
+
+};
+
+struct M2Light
+{
+
+};
+
+struct M2Camera
+{
+
+};
+
+struct M2Ribbon
+{
+
+};
+
+struct M2Particle
+{
+
+};
+
+struct M2SkinProfile
+{
+
+};
+
+struct C3Vector
+{
+
+};
+
+class M2V1 : public MPQFile
 {
 public:
-	M2(std::string name, unsigned char* data, long size);
-	~M2();
+	M2V1(std::string name, unsigned char* data, long size);
+	~M2V1();
 	bool parse();
 
 private:
-	/** File version - REVM chunk */
-	const std::string HEADER_MVER = "REVM";
-	static const unsigned int SUPPORTED_VERSION = 17;
-	struct Version {
+	/** File version - 02DM chunk */
+	const std::string HEADER_MD20 = "20DM";
+	static const unsigned int SUPPORTED_VERSION = 256;
+
+	struct Header {
 		char magic[4];
 		unsigned int size;
 		unsigned int version;
-	} *_version;
+	} * _header;
 	
 };

@@ -22,18 +22,18 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-#include "M2.h"
+#include "M2V1.h"
 
-M2::M2(std::string name, unsigned char* data, long size) {
+M2V1::M2V1(std::string name, unsigned char* data, long size) {
 	_name = name;
 	_data = data;
 	size = size;
 }
-M2::~M2()
+M2V1::~M2V1()
 {
 	delete _data;
 }
-bool M2::parse() 
+bool M2V1::parse()
 {
 	return true;
 }
