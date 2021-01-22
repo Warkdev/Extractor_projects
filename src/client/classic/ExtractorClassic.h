@@ -25,6 +25,8 @@
 #include <string>
 #include "../Extractor.h"
 #include "../mpq/ADTV1.h"
+#include "../mpq/WMOV1.h"
+#include "../mpq/M2V1.h"
 #include "Poco/Util/LayeredConfiguration.h"
 
 using Poco::Util::LayeredConfiguration;
@@ -50,6 +52,7 @@ class ExtractorClassic : public Extractor
 
 		bool convertWMORoot(WMOV1* wmo, ModelFile* file);
 		bool convertWMOGroup(WMOV1* root, WMOGroupV1* wmoGroup, ModelFile* file, unsigned int groupIdx, bool preciseVectorData);
+		bool convertModel(M2V1* model, ModelFile* file, bool preciseVectorData);
 		
 	private:
 		const std::string PATTERN_WDT = "World\\Maps\\%s\\%s.wdt";

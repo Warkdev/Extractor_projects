@@ -30,7 +30,7 @@
 #include "mpq/WDT.h"
 #include "mpq/ADTV1.h"
 #include "mpq/WMOV1.h"
-#include "mpq/M2.h"
+#include "mpq/M2V1.h"
 
 void MPQArchive::open()
 {
@@ -170,9 +170,9 @@ MPQFile* MPQArchive::getFile(std::string file, Version version)
                 break;
         }
     }
-    else if (Poco::endsWith(file, EXT_M2) || Poco::endsWith(file, EXT_MDX))
+    else if (Poco::endsWith(file, EXT_M2))
     {
-        return new M2(file, buffer, size);
+        return new M2V1(file, buffer, size);
     }
 
     return new MPQFile(file, buffer, size);

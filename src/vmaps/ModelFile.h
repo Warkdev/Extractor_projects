@@ -27,7 +27,6 @@
 
 #include "Poco/Logger.h"
 #include "Poco/Util/LayeredConfiguration.h"
-#include "../client/mpq/WMOV1.h"
 
 using Poco::Logger;
 using Poco::Util::LayeredConfiguration;

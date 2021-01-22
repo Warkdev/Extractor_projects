@@ -35,5 +35,89 @@ M2V1::~M2V1()
 }
 bool M2V1::parse()
 {
-	return true;
+	_logger.debug("Parsing M2 file %s", _name);
+
+	_header = (Header*)(_data);
+
+	if (!checkHeader(_header->magic, HEADER_MD20))
+	{
+		return false;
+	}
+
+	bool supported = false;
+
+	for (int i = 0; i < sizeof(SUPPORTED_VERSIONS) / sizeof(SUPPORTED_VERSIONS[0]); i++)
+	{
+		if (_header->version == SUPPORTED_VERSIONS[i])
+		{
+			supported = true;
+		}
+	}
+
+	return supported;
+}
+
+unsigned int M2V1::getNCollisionVertices()
+{
+	return _header->collisionVertices.size;
+}
+
+C3Vector* M2V1::getCollisionVertices()
+{
+	if (_header->collisionVertices.size)
+	{
+		return (C3Vector*)(_data + _header->collisionVertices.offset);
+	}
+
+	return NULL;
+}
+
+unsigned int M2V1::getNCollisionTriangles()
+{
+	return _header->collisionTriangles.size;
+}
+
+unsigned short* M2V1::getCollisionTriangles()
+{
+	if (_header->collisionTriangles.size)
+	{
+		return (unsigned short*)(_data + _header->collisionTriangles.offset);
+	}
+	return NULL;
+}
+
+unsigned int M2V1::getNVertices()
+{
+	return _header->vertices.size;
+}
+
+M2Vertex* M2V1::getVertices()
+{
+	if (_header->vertices.size)
+	{
+		return (M2Vertex*)(_data + _header->vertices.offset);
+	}
+
+	return NULL;
+}
+
+M2SkinProfile* M2V1::getSkins()
+{
+	if (_header->skinProfiles.size)
+	{
+		return (M2SkinProfile*)(_data + _header->skinProfiles.offset);
+	}
+	return NULL;
+}
+
+M2SkinSection* M2V1::getSubmeshes(unsigned int view)
+{
+	M2SkinProfile* skins = getSkins();
+	return (M2SkinSection*) ((unsigned char*) &skins[view]) + skins[view].subMeshes.offset;
+}
+
+unsigned short* M2V1::getIndices(unsigned int view)
+{
+	M2SkinProfile* skins = getSkins();
+	return (unsigned short*)((unsigned char*)&skins[view]) + skins[view].indices.offset;
 }

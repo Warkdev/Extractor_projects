@@ -100,6 +100,10 @@ source_group("main" FILES ${SRC_GRP_MAIN})
 file(GLOB SRC_GRP_CLIENT src/client/*.cpp src/client/*.h)
 source_group("client" FILES ${SRC_GRP_CLIENT})
 
+#Geometry group
+file(GLOB SRC_GRP_GEOMETRY src/geometry/*.h)
+source_group("geometry" FILES ${SRC_GRP_GEOMETRY})
+
 #MPQ Files Client group
 file(GLOB SRC_GRP_CLIENT_MPQ src/client/mpq/*.cpp src/client/mpq/*.h)
 source_group("client\\mpq" FILES ${SRC_GRP_CLIENT_MPQ})
@@ -130,6 +134,7 @@ source_group("vmaps" FILES ${SRC_GRP_VMAP_FILES})
 
 add_executable(extractor
     ${SRC_GRP_MAIN}
+    ${SRC_GRP_GEOMETRY}
     ${SRC_GRP_MAP_FILES}
     ${SRC_GRP_VMAP_FILES}
     ${SRC_GRP_CLIENT}

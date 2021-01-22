@@ -29,8 +29,6 @@
 #include "Poco/MD5Engine.h"
 #include "Poco/DigestStream.h"
 #include "../mpq/WDT.h"
-#include "../mpq/ADTV1.h"
-#include "../mpq/WMOV1.h"
 
 using Poco::Path;
 using Poco::File;
@@ -77,8 +75,8 @@ void ExtractorClassic::extract(std::string outputPath, bool exportMap, bool gene
             file.createDirectories();
         }
 
-        exportWMOs(outputPath, cacheToDisk);
-        exportModels(outputPath, cacheToDisk);
+        exportWMOs(path.toString(), cacheToDisk);
+        exportModels(path.toString(), cacheToDisk);
 
         _logger.information("Extraction complete");
 
@@ -654,42 +652,144 @@ void ExtractorClassic::exportModels(std::string outputPath, bool cacheToDisk)
 
     for (auto it = models.begin(); it < models.end(); ++it)
     {
-        _logger.information("Extracting model %s", *it);
+        _logger.debug("Extracting model %s", *it);
         temp.assign(*it, Path::Style::PATH_WINDOWS); // Force path to interpret it with '\' as separator.
         ds << temp.parent().toString();
         hash = DigestEngine::digestToHex(engine.digest());
         ds.clear();
-        /**WMOV1* wmo = (WMOV1*)_mpqManager->getFile(*it, _version);
+        M2V1* model = (M2V1*)_mpqManager->getFile(*it, _version);
 
-        if (!wmo)
+        if (!model)
         {
-            _logger.warning("WMO file does not exist, warning can be safely ignored but no vmap info will be generated");
+            _logger.warning("Model file does not exist %s, warning can be safely ignored but no vmap info will be generated", *it);
             continue;
         }
 
-        if (!wmo->parse())
+        if (!model->parse())
         {
-            _logger.error("Error while parsing the WMO file %s ", *it);
-            delete wmo;
+            _logger.error("Error while parsing the Model file %s ", *it);
+            delete model;
             continue;
-        }*/
+        }
 
-        //WMOFile* wmoFile = new WMOFile(temp.parent().toString(), hash, temp.getFileName());
+        ModelFile* modelFile = new ModelFile(temp.parent().toString(), hash, temp.getFileName());
 
-        //convertWMORoot(wmo, wmoFile);
+        convertModel(model, modelFile, preciseVectorData);
 
         if (cacheToDisk)
         {
-            //wmoFile->save(path.toString());
-            //delete wmoFile;
+            modelFile->save(path.toString());
+            delete modelFile;
         }
 
         // We use printf here because there's no known way to do it with Poco.
         count++;
         printf(" Processing........................%d%%\r", (100 * (count + 1)) / total);
 
-        //delete wmo;
+        delete model;
     }
 
     ds.close();
+}
+
+bool ExtractorClassic::convertModel(M2V1* model, ModelFile* file, bool preciseVectorData)
+{
+    strncpy(file->header.versionMagic, "z07\0", 4);
+    file->header.nGroups = 1;
+    file->header.rootWMOID = 0;
+    file->groups = new ModelFile::VmapGroup[1];
+    ModelFile::VmapGroup* group = &(file->groups[0]);
+    unsigned int tmp;
+
+    file->header.nVectors = model->getNCollisionVertices();
+    group->flags = 0;
+    group->groupWMOID = 0;
+    group->boundingBox.min.x = 0;
+    group->boundingBox.min.y = 0;
+    group->boundingBox.min.z = 0;
+    group->boundingBox.max.x = 0;
+    group->boundingBox.max.y = 0;
+    group->boundingBox.max.z = 0;
+    group->liquidFlags = 0;
+
+    // Header
+    group->header.mobaSize = sizeof(unsigned int) + sizeof(unsigned int);
+    group->header.mobaBatch = 1;
+    group->header.mobaEx = new unsigned int[group->header.mobaBatch];
+    group->header.mobaEx[0] = model->getNCollisionTriangles();
+
+    if (preciseVectorData)
+    {
+        // Use all triangles. This is not a good idea, leave that setting to 0 please. :-)
+        unsigned int view = 0;
+
+        // Vertices
+        group->vertices.nVertices = model->getNVertices();
+        group->vertices.size = sizeof(unsigned int) + (sizeof(ModelFile::VmapGroup::Vertices::Vertex) * group->vertices.nVertices);
+        group->vertices.vertices = new ModelFile::VmapGroup::Vertices::Vertex[group->vertices.nVertices];
+        M2Vertex* vertices = model->getVertices();
+        for (int i = 0; i < group->vertices.nVertices; i++)
+        {
+            group->vertices.vertices[i].x = vertices[i].position.x;
+            group->vertices.vertices[i].y = vertices[i].position.y;
+            group->vertices.vertices[i].z = vertices[i].position.z;
+        }
+
+        // Indices
+        M2SkinProfile* skins = model->getSkins();
+        M2SkinSection* section;
+        unsigned short* indices;
+        unsigned int nIndices = 0;
+        // First, we count all indices.
+        for (int i = 0; i < (skins[view].subMeshes.size / sizeof(M2SkinSection)); i++)
+        {
+            section = model->getSubmeshes(view);
+            for (int j = section[i].indexStart; j < (section[i].indexStart + section[i].indexCount); j++)
+            {
+                nIndices++;
+            }
+        }
+        group->indices.nIndices = nIndices;
+        group->indices.size = sizeof(unsigned int) + (sizeof(unsigned short) * group->indices.nIndices);
+        group->indices.indices = new unsigned short[nIndices];
+        // Then, we add them.
+        int k = 0;
+        for (int i = 0; i < (skins[view].subMeshes.size / sizeof(M2SkinSection)); i++)
+        {
+            section = model->getSubmeshes(view);
+            indices = model->getIndices(view);
+            for (int j = section[i].indexStart; j < (section[i].indexStart + section[i].indexCount); j++)
+            {
+                group->indices.indices[k] = indices[j];;
+                k++;
+            }
+        }
+    }
+    else {
+        // Use collision triangles.
+
+        // Vertices
+        group->vertices.nVertices = model->getNCollisionVertices();
+        group->vertices.size = sizeof(unsigned int) + (sizeof(ModelFile::VmapGroup::Vertices::Vertex) * group->vertices.nVertices);
+        group->vertices.vertices = new ModelFile::VmapGroup::Vertices::Vertex[group->vertices.nVertices];
+        memcpy(group->vertices.vertices, model->getCollisionVertices(), group->vertices.nVertices);
+
+        // Indices
+        group->indices.nIndices = model->getNCollisionTriangles();
+        group->indices.size = sizeof(unsigned int) + sizeof(unsigned short) * group->indices.nIndices;
+        group->indices.indices = new unsigned short[group->indices.nIndices];
+        memcpy(group->indices.indices, model->getCollisionTriangles(), group->indices.nIndices);
+
+        for (int i = 0; i < group->indices.nIndices; i++)
+        {
+            if (!((i % 3) - 1))
+            {
+                tmp = group->indices.indices[i];
+                group->indices.indices[i] = group->indices.indices[i + 1];
+                group->indices.indices[i + 1] = tmp;
+            }
+        }
+    }
+
+    return true;
 }
