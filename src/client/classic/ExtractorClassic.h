@@ -52,7 +52,7 @@ class ExtractorClassic : public Extractor
 
 		bool convertWMORoot(WMOV1* wmo, ModelFile* file);
 		bool convertWMOGroup(WMOV1* root, WMOGroupV1* wmoGroup, ModelFile* file, unsigned int groupIdx, bool preciseVectorData);
-		bool convertModel(M2V1* model, ModelFile* file, bool preciseVectorData);
+		bool convertModel(M2V1* model, ModelFile* file);
 		
 	private:
 		const std::string PATTERN_WDT = "World\\Maps\\%s\\%s.wdt";

@@ -85,7 +85,6 @@ class Extractor
 		// Vmap Generator Configuration keys.
 		const std::string PROP_VMAP_CACHE_TO_DISK = "vmap.cache.disk";
 		const std::string PROP_VMAP_WMO_PRECISE_VECTOR_DATA = "vmap.wmo.preciseVectorData";
-		const std::string PROP_VMAP_MODEL_PRECISE_VECTOR_DATA = "vmap.model.preciseVectorData";
 
 		Logger& _logger = Logger::get("Extractor");
 		LayeredConfiguration* _config;

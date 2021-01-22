@@ -637,7 +637,6 @@ bool ExtractorClassic::convertWMOGroup(WMOV1* root, WMOGroupV1* wmoGroup, ModelF
 void ExtractorClassic::exportModels(std::string outputPath, bool cacheToDisk)
 {
     _logger.information("Extracting Models...");
-    bool preciseVectorData = _config->getBool(PROP_VMAP_MODEL_PRECISE_VECTOR_DATA);
 
     Path path(outputPath);
 
@@ -674,7 +673,7 @@ void ExtractorClassic::exportModels(std::string outputPath, bool cacheToDisk)
 
         ModelFile* modelFile = new ModelFile(temp.parent().toString(), hash, temp.getFileName());
 
-        convertModel(model, modelFile, preciseVectorData);
+        convertModel(model, modelFile);
 
         if (cacheToDisk)
         {
@@ -692,7 +691,7 @@ void ExtractorClassic::exportModels(std::string outputPath, bool cacheToDisk)
     ds.close();
 }
 
-bool ExtractorClassic::convertModel(M2V1* model, ModelFile* file, bool preciseVectorData)
+bool ExtractorClassic::convertModel(M2V1* model, ModelFile* file)
 {
     strncpy(file->header.versionMagic, "z07\0", 4);
     file->header.nGroups = 1;
@@ -718,76 +717,27 @@ bool ExtractorClassic::convertModel(M2V1* model, ModelFile* file, bool preciseVe
     group->header.mobaEx = new unsigned int[group->header.mobaBatch];
     group->header.mobaEx[0] = model->getNCollisionTriangles();
 
-    if (preciseVectorData)
+    // Use collision triangles.
+
+    // Vertices
+    group->vertices.nVertices = model->getNCollisionVertices();
+    group->vertices.size = sizeof(unsigned int) + (sizeof(ModelFile::VmapGroup::Vertices::Vertex) * group->vertices.nVertices);
+    group->vertices.vertices = new ModelFile::VmapGroup::Vertices::Vertex[group->vertices.nVertices];
+    memcpy(group->vertices.vertices, model->getCollisionVertices(), group->vertices.nVertices);
+
+    // Indices
+    group->indices.nIndices = model->getNCollisionTriangles();
+    group->indices.size = sizeof(unsigned int) + sizeof(unsigned short) * group->indices.nIndices;
+    group->indices.indices = new unsigned short[group->indices.nIndices];
+    memcpy(group->indices.indices, model->getCollisionTriangles(), group->indices.nIndices);
+
+    for (int i = 0; i < group->indices.nIndices; i++)
     {
-        // Use all triangles. This is not a good idea, leave that setting to 0 please. :-)
-        unsigned int view = 0;
-
-        // Vertices
-        group->vertices.nVertices = model->getNVertices();
-        group->vertices.size = sizeof(unsigned int) + (sizeof(ModelFile::VmapGroup::Vertices::Vertex) * group->vertices.nVertices);
-        group->vertices.vertices = new ModelFile::VmapGroup::Vertices::Vertex[group->vertices.nVertices];
-        M2Vertex* vertices = model->getVertices();
-        for (int i = 0; i < group->vertices.nVertices; i++)
+        if (!((i % 3) - 1))
         {
-            group->vertices.vertices[i].x = vertices[i].position.x;
-            group->vertices.vertices[i].y = vertices[i].position.y;
-            group->vertices.vertices[i].z = vertices[i].position.z;
-        }
-
-        // Indices
-        M2SkinProfile* skins = model->getSkins();
-        M2SkinSection* section;
-        unsigned short* indices;
-        unsigned int nIndices = 0;
-        // First, we count all indices.
-        for (int i = 0; i < (skins[view].subMeshes.size / sizeof(M2SkinSection)); i++)
-        {
-            section = model->getSubmeshes(view);
-            for (int j = section[i].indexStart; j < (section[i].indexStart + section[i].indexCount); j++)
-            {
-                nIndices++;
-            }
-        }
-        group->indices.nIndices = nIndices;
-        group->indices.size = sizeof(unsigned int) + (sizeof(unsigned short) * group->indices.nIndices);
-        group->indices.indices = new unsigned short[nIndices];
-        // Then, we add them.
-        int k = 0;
-        for (int i = 0; i < (skins[view].subMeshes.size / sizeof(M2SkinSection)); i++)
-        {
-            section = model->getSubmeshes(view);
-            indices = model->getIndices(view);
-            for (int j = section[i].indexStart; j < (section[i].indexStart + section[i].indexCount); j++)
-            {
-                group->indices.indices[k] = indices[j];;
-                k++;
-            }
-        }
-    }
-    else {
-        // Use collision triangles.
-
-        // Vertices
-        group->vertices.nVertices = model->getNCollisionVertices();
-        group->vertices.size = sizeof(unsigned int) + (sizeof(ModelFile::VmapGroup::Vertices::Vertex) * group->vertices.nVertices);
-        group->vertices.vertices = new ModelFile::VmapGroup::Vertices::Vertex[group->vertices.nVertices];
-        memcpy(group->vertices.vertices, model->getCollisionVertices(), group->vertices.nVertices);
-
-        // Indices
-        group->indices.nIndices = model->getNCollisionTriangles();
-        group->indices.size = sizeof(unsigned int) + sizeof(unsigned short) * group->indices.nIndices;
-        group->indices.indices = new unsigned short[group->indices.nIndices];
-        memcpy(group->indices.indices, model->getCollisionTriangles(), group->indices.nIndices);
-
-        for (int i = 0; i < group->indices.nIndices; i++)
-        {
-            if (!((i % 3) - 1))
-            {
-                tmp = group->indices.indices[i];
-                group->indices.indices[i] = group->indices.indices[i + 1];
-                group->indices.indices[i + 1] = tmp;
-            }
+            tmp = group->indices.indices[i];
+            group->indices.indices[i] = group->indices.indices[i + 1];
+            group->indices.indices[i + 1] = tmp;
         }
     }
 
