@@ -51,7 +51,7 @@ void MPQManager::load(std::vector<std::string> files)
 				{
 					_dbcs.push_back(file);
 				}
-				if (Poco::endsWith(file, mpq->EXT_WMO))
+				else if (Poco::endsWith(file, mpq->EXT_WMO))
 				{
 					// We've a WMO, let's check if that's a root one and add it to our list if that's the case.
 					digitCount = 0;
@@ -72,6 +72,10 @@ void MPQManager::load(std::vector<std::string> files)
 						_wmos.push_back(file);
 					}
 				}
+				else if (Poco::endsWith(file, mpq->EXT_M2))
+				{
+					_models.push_back(file);
+				}
 				count++;
 			}
 		}
@@ -84,6 +88,7 @@ void MPQManager::load(std::vector<std::string> files)
 	_logger.information("Total MPQ files loaded: %z", _mapFiles.size());
 	_logger.information("Total loaded DBC: %z", _dbcs.size());
 	_logger.information("Total loaded WMO: %z", _wmos.size());
+	_logger.information("Total loaded Models: %z", _models.size());
 }
 
 std::vector<std::string> MPQManager::getDBCList()
@@ -94,6 +99,11 @@ std::vector<std::string> MPQManager::getDBCList()
 std::vector<std::string> MPQManager::getWMOList()
 {
 	return _wmos;
+}
+
+std::vector<std::string> MPQManager::getModelsList()
+{
+	return _models;
 }
 
 bool MPQManager::extractFile(std::string file, std::string path)

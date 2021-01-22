@@ -68,7 +68,24 @@ void ExtractorClassic::extract(std::string outputPath, bool exportMap, bool gene
     if (generateVmaps)
     {
         //readLiquidType();
-        exportWMOs(outputPath);
+        bool cacheToDisk = _config->getBool(PROP_VMAP_CACHE_TO_DISK);
+        Path path(outputPath + PATH_MODELS);
+        File file(path);
+
+        if (cacheToDisk)
+        {
+            file.createDirectories();
+        }
+
+        exportWMOs(outputPath, cacheToDisk);
+        exportModels(outputPath, cacheToDisk);
+
+        _logger.information("Extraction complete");
+
+        if (cacheToDisk)
+        {
+            //file.remove(true);
+        }
     }
 }
 
@@ -344,18 +361,11 @@ void ExtractorClassic::handleHoles(MapFile* map, MCNK* cell, unsigned int i, uns
     map->holes[i][j] = cell->holes;
 }
 
-void ExtractorClassic::exportWMOs(std::string outputPath)
+void ExtractorClassic::exportWMOs(std::string outputPath, bool cacheToDisk)
 {
     _logger.information("Extracting WMOs..");
-    bool cacheToDisk = _config->getBool(PROP_VMAP_CACHE_TO_DISK);
-    bool preciseVectorData = _config->getBool(PROP_VMAP_PRECISE_VECTOR_DATA);
-    Path path(outputPath + PATH_WMOS);
-    File file(path);
-
-    if (cacheToDisk)
-    {
-        file.createDirectories();
-    }
+    bool preciseVectorData = _config->getBool(PROP_VMAP_WMO_PRECISE_VECTOR_DATA);
+    Path path(outputPath);
 
     std::vector<std::string> wmos = _mpqManager->getWMOList();
     Path temp;
@@ -389,7 +399,7 @@ void ExtractorClassic::exportWMOs(std::string outputPath)
             continue;
         }
 
-        WMOFile* wmoFile = new WMOFile(temp.parent().toString(), hash, temp.getFileName());
+        ModelFile* wmoFile = new ModelFile(temp.parent().toString(), hash, temp.getFileName());
 
         convertWMORoot(wmo, wmoFile);
 
@@ -429,32 +439,25 @@ void ExtractorClassic::exportWMOs(std::string outputPath)
     }
 
     ds.close();
-
-    _logger.information("Extraction complete");
-
-    if (cacheToDisk)
-    {
-        //file.remove(true);
-    }
 }
 
-bool ExtractorClassic::convertWMORoot(WMOV1* wmo, WMOFile* file)
+bool ExtractorClassic::convertWMORoot(WMOV1* wmo, ModelFile* file)
 {
     strncpy(file->header.versionMagic, "z07\0", 4);
     file->header.nGroups = wmo->getNGroups();
     file->header.rootWMOID = wmo->getWMOID();
-    file->groups = new WMOFile::VmapGroup[wmo->getNGroups()];
+    file->groups = new ModelFile::VmapGroup[wmo->getNGroups()];
     return true;
 }
 
-bool ExtractorClassic::convertWMOGroup(WMOV1* root, WMOGroupV1* wmoGroup, WMOFile* file, unsigned int groupIdx, bool preciseVectorData)
+bool ExtractorClassic::convertWMOGroup(WMOV1* root, WMOGroupV1* wmoGroup, ModelFile* file, unsigned int groupIdx, bool preciseVectorData)
 {
     MOGP::GroupInfo* info = wmoGroup->getGroupInfo();
     MOBA* batchInfo = wmoGroup->getBatchInfo();
     MOPY* polyInfo = wmoGroup->getPolyInfo();
     MOVI* vertexIndices = wmoGroup->getVertexIndices();
     MOVT* vertexInfo = wmoGroup->getVertexInfo();
-    WMOFile::VmapGroup* group = &(file->groups[groupIdx]);
+    ModelFile::VmapGroup* group = &(file->groups[groupIdx]);
 
     // Source:: MOGP
     group->flags = info->flags;
@@ -490,11 +493,79 @@ bool ExtractorClassic::convertWMOGroup(WMOV1* root, WMOGroupV1* wmoGroup, WMOFil
         // Source: MOVT
         group->vertices.nVertices = vertexInfo->size / sizeof(MOVT::Vertex);
         group->vertices.size = sizeof(unsigned int) + vertexInfo->size;
-        group->vertices.vertices = new WMOFile::VmapGroup::Vertices::Vertex[group->vertices.nVertices];
-        memcpy(group->vertices.vertices, vertexInfo->vertices, group->vertices.nVertices * sizeof(WMOFile::VmapGroup::Vertices::Vertex));
+        group->vertices.vertices = new ModelFile::VmapGroup::Vertices::Vertex[group->vertices.nVertices];
+        memcpy(group->vertices.vertices, vertexInfo->vertices, group->vertices.nVertices * sizeof(ModelFile::VmapGroup::Vertices::Vertex));
     }
     else {
+        unsigned int nColTriangles = 0;
+        unsigned int nColVertices = 0;
+        unsigned int nVectors = polyInfo->size / sizeof(unsigned short);
+        unsigned int nVertices = vertexInfo->size / sizeof(MOVT::Vertex);
+        unsigned short* moviEx = new unsigned short[nVectors * 3]; // Worst case, all triangles are collisions ones.
+        int* newIndex = new int[nVertices];
+        memset(newIndex, 0xFF, nVertices * sizeof(int));
+        unsigned short tempIdx = 0;
 
+        for (int i = 0; i < nVectors; i++)
+        {
+            if (wmoGroup->isCollidable(i))
+            {
+                // Use this triangle.
+                for (int j = 0; j < 3; j++)
+                {
+                    tempIdx = vertexIndices->indexes[3 * i + j];
+                    newIndex[tempIdx] = 1;
+                    moviEx[3 * nColTriangles + j] = tempIdx;
+                }
+                nColTriangles++;
+            }
+        }
+
+        // Assign new vertex index numbers
+        for (int i = 0; i < nVertices; i++)
+        {
+            if (newIndex[i] == 1)
+            {
+                newIndex[i] = nColVertices;
+                nColVertices++;
+            }
+        }
+
+        file->header.nVectors += nColTriangles;
+
+        group->indices.nIndices = nColTriangles * 3;
+        group->indices.size = sizeof(unsigned int) + (sizeof(unsigned short) * group->indices.nIndices);
+        group->indices.indices = new unsigned short[group->indices.nIndices];
+
+        // Translate triangle indices to new numbers
+        for (int i = 0; i < group->indices.nIndices; i++)
+        {
+            group->indices.indices[i] = (unsigned short) newIndex[moviEx[i]];
+        }
+
+        group->vertices.nVertices = nColVertices;
+        group->vertices.size = sizeof(unsigned int) + (sizeof(ModelFile::VmapGroup::Vertices::Vertex) * nColVertices);
+        group->vertices.vertices = new ModelFile::VmapGroup::Vertices::Vertex[group->vertices.nVertices];
+        int k = 0;
+
+        for (int i = 0; i < nVertices; i++)
+        {
+            if (newIndex[i] >= 0)
+            {
+                group->vertices.vertices[k].x = vertexInfo->vertices[i].x;
+                group->vertices.vertices[k].y = vertexInfo->vertices[i].y;
+                group->vertices.vertices[k].z = vertexInfo->vertices[i].z;
+                k++;
+            }
+        }
+
+        if (k != nColVertices)
+        {
+            _logger.error("Bad collision vertex count for model %s", file->getFilename());
+        }
+
+        delete[] newIndex;
+        delete[] moviEx;
     }
 
     if (wmoGroup->hasLiquid())
@@ -502,7 +573,7 @@ bool ExtractorClassic::convertWMOGroup(WMOV1* root, WMOGroupV1* wmoGroup, WMOFil
         MLIQ* liquidInfo = wmoGroup->getLiquidInfo();
         LiquidVert* liquidVertices = wmoGroup->getLiquidVertices();
         group->liquidFlags |= 1;
-        group->liquid.size = sizeof(MLIQ::Header) + (sizeof(LiquidVert) * liquidInfo->header.xVerts * liquidInfo->header.yVerts) + (liquidInfo->header.xTiles * liquidInfo->header.yTiles);
+        group->liquid.size = sizeof(MLIQ::Header) - 2 + (sizeof(float) * liquidInfo->header.xVerts * liquidInfo->header.yVerts) + (liquidInfo->header.xTiles * liquidInfo->header.yTiles);
         group->liquid.xVerts = liquidInfo->header.xVerts;
         group->liquid.yVerts = liquidInfo->header.yVerts;
         group->liquid.xTiles = liquidInfo->header.xTiles;
@@ -563,4 +634,62 @@ bool ExtractorClassic::convertWMOGroup(WMOV1* root, WMOGroupV1* wmoGroup, WMOFil
     }
 
     return true;
+}
+
+void ExtractorClassic::exportModels(std::string outputPath, bool cacheToDisk)
+{
+    _logger.information("Extracting Models...");
+    bool preciseVectorData = _config->getBool(PROP_VMAP_MODEL_PRECISE_VECTOR_DATA);
+
+    Path path(outputPath);
+
+    std::vector<std::string> models = _mpqManager->getModelsList();
+    Path temp;
+    std::string flatName;
+    std::string hash;
+    MD5Engine engine;
+    DigestOutputStream ds(engine);
+    unsigned int count = 0;
+    unsigned int total = (unsigned int) models.size();
+
+    for (auto it = models.begin(); it < models.end(); ++it)
+    {
+        _logger.information("Extracting model %s", *it);
+        temp.assign(*it, Path::Style::PATH_WINDOWS); // Force path to interpret it with '\' as separator.
+        ds << temp.parent().toString();
+        hash = DigestEngine::digestToHex(engine.digest());
+        ds.clear();
+        /**WMOV1* wmo = (WMOV1*)_mpqManager->getFile(*it, _version);
+
+        if (!wmo)
+        {
+            _logger.warning("WMO file does not exist, warning can be safely ignored but no vmap info will be generated");
+            continue;
+        }
+
+        if (!wmo->parse())
+        {
+            _logger.error("Error while parsing the WMO file %s ", *it);
+            delete wmo;
+            continue;
+        }*/
+
+        //WMOFile* wmoFile = new WMOFile(temp.parent().toString(), hash, temp.getFileName());
+
+        //convertWMORoot(wmo, wmoFile);
+
+        if (cacheToDisk)
+        {
+            //wmoFile->save(path.toString());
+            //delete wmoFile;
+        }
+
+        // We use printf here because there's no known way to do it with Poco.
+        count++;
+        printf(" Processing........................%d%%\r", (100 * (count + 1)) / total);
+
+        //delete wmo;
+    }
+
+    ds.close();
 }

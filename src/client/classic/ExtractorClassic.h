@@ -40,15 +40,16 @@ class ExtractorClassic : public Extractor
 		virtual void extract(std::string outputPath, bool exportMap, bool generateVmaps);
 	protected:
 		virtual void exportMaps(std::string outputPath);
-		virtual void exportWMOs(std::string outputPath);
+		virtual void exportWMOs(std::string outputPath, bool cacheToDisk);
+		virtual void exportModels(std::string outputPath, bool cacheToDisk);
 		bool convertADT(ADTV1* adt, MapFile* map, unsigned int maxAreaId, bool allowHeightLimit, bool allowFloatToInt, float floatHeightDeltaLimit, float floatLiquidDeltaLimit, float floatToByteLimit, float floatToShortLimit, float useMinHeight);
 		void handleAreas(MapFile* map, MCNK* cell, unsigned int i, unsigned int j, unsigned int maxAreaId);
 		void handleHeight(MapFile* map, ADTV1* adt, MCNK* cell, unsigned int i, unsigned int j, bool allowHeightLimit, float useMinHeight);
 		void handleLiquid(MapFile* map, ADTV1* adt, MCNK* cell, unsigned int i, unsigned int j);
 		void handleHoles(MapFile* map, MCNK* cell, unsigned int i, unsigned int j);
 
-		bool convertWMORoot(WMOV1* wmo, WMOFile* file);
-		bool convertWMOGroup(WMOV1* root, WMOGroupV1* wmoGroup, WMOFile* file, unsigned int groupIdx, bool preciseVectorData);
+		bool convertWMORoot(WMOV1* wmo, ModelFile* file);
+		bool convertWMOGroup(WMOV1* root, WMOGroupV1* wmoGroup, ModelFile* file, unsigned int groupIdx, bool preciseVectorData);
 		
 	private:
 		const std::string PATTERN_WDT = "World\\Maps\\%s\\%s.wdt";

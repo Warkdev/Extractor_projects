@@ -614,6 +614,11 @@ class WMOGroupV1 : public MPQFile
 		bool hasLiquid();
 
 		unsigned int getAreaTableId();
+
+		// Poly
+		bool isCollidable(unsigned int index);
+
+		// Liquid
 		bool tileHasNoLiquid(unsigned int idx);
 		bool tileIsWater(unsigned int idx);
 		bool tileIsOcean(unsigned int idx);

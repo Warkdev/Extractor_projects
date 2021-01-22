@@ -538,7 +538,7 @@ LiquidTile* WMOGroupV1::getLiquidTile(unsigned int idx)
 	unsigned int liquidVertexSize = liquidInfo->header.xVerts * liquidInfo->header.yVerts * sizeof(LiquidVert);
 	unsigned int offset = idx * sizeof(unsigned char);
 
-	return (LiquidTile*) (8 + (unsigned char*)liquidInfo + sizeof(MLIQ::Header) + liquidVertexSize + offset);
+	return (LiquidTile*) (6 + (unsigned char*)liquidInfo + sizeof(MLIQ::Header) + liquidVertexSize + offset);
 }
 
 LiquidVert* WMOGroupV1::getLiquidVertices()
@@ -549,10 +549,22 @@ LiquidVert* WMOGroupV1::getLiquidVertices()
 		return NULL;
 	}
 
-	return (LiquidVert*)(8 + (unsigned char*)liquidInfo + sizeof(MLIQ::Header));
+	return (LiquidVert*)(6 + (unsigned char*)liquidInfo + sizeof(MLIQ::Header)); // (sizeof(magic) + sizeof(size) + (unsigned char*)liquidInfo + sizeof(MLIQ::Header)) -2 because MLIQ::Header contains a struct which resolves to 32 as size.
 }
 
 LiquidTile* WMOGroupV1::getLiquidFlags()
 {
 	return getLiquidTile(0);
+}
+
+bool WMOGroupV1::isCollidable(unsigned int index)
+{
+	MOPY* polyInfo = getPolyInfo();
+
+	if (!polyInfo)
+	{
+		return false;
+	}
+
+	return (polyInfo->materials[index].flags & COLLISION) || (polyInfo->materials[index].flags & RENDER && !(polyInfo->materials[index].flags & DETAIL));
 }

@@ -51,6 +51,7 @@ class MPQManager
 
 		std::vector<std::string> getDBCList();
 		std::vector<std::string> getWMOList();
+		std::vector<std::string> getModelsList();
 
 		bool extractFile(std::string file, std::string path);
 
@@ -62,6 +63,7 @@ class MPQManager
 		std::unordered_map<std::string, MPQArchive*> _mapFiles; // Maintain a list of files contained in every MPQ and a pointer into which MPQArchive holds it.
 		std::vector<std::string> _dbcs;
 		std::vector<std::string> _wmos;
+		std::vector<std::string> _models;
 };
 
 #endif // !EXTRACTOR_H

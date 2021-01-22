@@ -288,9 +288,14 @@ void Extractor::exportMaps(std::string outputPath)
 	_logger.information("You should not end up here");
 }
 
-void Extractor::exportWMOs(std::string outputPath)
+void Extractor::exportWMOs(std::string outputPath, bool cacheToDisk)
 {
 	_logger.information("You should not end up here");
+}
+
+void Extractor::exportModels(std::string outputPath, bool cacheToDisk)
+{
+    _logger.information("You should not end up here");
 }
 
 void Extractor::readMaps()

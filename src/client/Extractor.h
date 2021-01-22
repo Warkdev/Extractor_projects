@@ -29,7 +29,7 @@
 #include "Poco/Util/LayeredConfiguration.h"
 #include "MPQManager.h"
 #include "../maps/MapFile.h"
-#include "../vmaps/WMOFile.h"
+#include "../vmaps/ModelFile.h"
 
 using Poco::Logger;
 using Poco::Util::LayeredConfiguration;
@@ -64,7 +64,8 @@ class Extractor
 		void readAreaTable();
 		void readLiquidType();
 		virtual void exportMaps(std::string outputPath);
-		virtual void exportWMOs(std::string outputPath);
+		virtual void exportWMOs(std::string outputPath, bool cacheToDisk);
+		virtual void exportModels(std::string outputPath, bool cacheToDisk);
 
 		void packAreaData(MapFile* map);
 		void packHeight(MapFile* map, bool allowFloatToInt, float floatHeightDeltaLimit, float floatToByteLimit, float floatToShortLimit);
@@ -83,14 +84,15 @@ class Extractor
 
 		// Vmap Generator Configuration keys.
 		const std::string PROP_VMAP_CACHE_TO_DISK = "vmap.cache.disk";
-		const std::string PROP_VMAP_PRECISE_VECTOR_DATA = "vmap.preciseVectorData";
+		const std::string PROP_VMAP_WMO_PRECISE_VECTOR_DATA = "vmap.wmo.preciseVectorData";
+		const std::string PROP_VMAP_MODEL_PRECISE_VECTOR_DATA = "vmap.model.preciseVectorData";
 
 		Logger& _logger = Logger::get("Extractor");
 		LayeredConfiguration* _config;
 		Version _version;
 		const std::string PATH_DBC = "/dbc";
 		const std::string PATH_MAPS = "/maps";
-		const std::string PATH_WMOS = "/wmos";
+		const std::string PATH_MODELS = "/models";
 		const std::string DBC_MAPS = "DBFilesClient\\Map.dbc";
 		const std::string DBC_AREATABLE = "DBFilesClient\\AreaTable.dbc";
 		const std::string DBC_LIQUIDTYPE = "DBFilesClient\\LiquidType.dbc";
