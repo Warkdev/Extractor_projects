@@ -55,17 +55,17 @@ class Extractor
 			delete _mpqManager;
 		}
 
-		virtual void init(std::string clientPath);
+		virtual void init(std::string clientPath) = 0;
 		void loadMPQs();
 		void exportDBC(std::string outputPath);
-		virtual void extract(std::string outputPath, bool exportMap, bool generateVmaps);
+		virtual void extract(std::string outputPath, bool exportMap, bool generateVmaps) = 0;
 	protected:
 		void readMaps();
 		void readAreaTable();
 		void readLiquidType();
-		virtual void exportMaps(std::string outputPath);
-		virtual void exportWMOs(std::string outputPath, bool cacheToDisk);
-		virtual void exportModels(std::string outputPath, bool cacheToDisk);
+		virtual void exportMaps(std::string outputPath) = 0;
+		virtual void exportWMOs(std::string outputPath, bool cacheToDisk) = 0;
+		virtual void exportModels(std::string outputPath, bool cacheToDisk) = 0;
 
 		void packAreaData(MapFile* map);
 		void packHeight(MapFile* map, bool allowFloatToInt, float floatHeightDeltaLimit, float floatToByteLimit, float floatToShortLimit);

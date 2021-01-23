@@ -283,21 +283,6 @@ void Extractor::packData(char* version, unsigned int build,  MapFile* map, bool 
     packHoles(map);
 }
 
-void Extractor::exportMaps(std::string outputPath)
-{
-	_logger.information("You should not end up here");
-}
-
-void Extractor::exportWMOs(std::string outputPath, bool cacheToDisk)
-{
-	_logger.information("You should not end up here");
-}
-
-void Extractor::exportModels(std::string outputPath, bool cacheToDisk)
-{
-    _logger.information("You should not end up here");
-}
-
 void Extractor::readMaps()
 {
 	DBC* dbc = (DBC*)_mpqManager->getFile(DBC_MAPS, _version);
