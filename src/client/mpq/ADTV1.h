@@ -108,6 +108,11 @@ struct MCNK {
 	unsigned int* refList;
 };
 
+struct MDDX {
+	const char magic[4];
+	unsigned int size;
+	char* filenames[];
+};
 /**
 * This file represent an ADT file from a WoW Vanilla client.
 */
@@ -135,6 +140,8 @@ class ADTV1 : public MPQFile
 		bool isSlime(MCNK* chunk);
 		bool hasNoLiquid(MCNK* chunk);
 		std::string getName();
+		std::vector<std::string> getModels();
+		std::vector<std::string> getWorldModels();
 	private:
 		static const unsigned int GLOBAL_OFFSET = 20;
 		static const unsigned int CHUNK_TILE_HEIGHTMAP_LENGTH = 9;

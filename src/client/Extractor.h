@@ -97,6 +97,10 @@ class Extractor
 		const std::string DBC_LIQUIDTYPE = "DBFilesClient\\LiquidType.dbc";
 		std::vector<std::string> _listMPQ;
 		MPQManager* _mpqManager;
+
+		std::vector<std::string> _worldModels;
+		std::vector<std::string> _models;
+
 		std::map<unsigned int, std::string> _maps;
 		std::map<unsigned int, unsigned int> _areas;
 		std::map<unsigned int, unsigned int> _liquids;

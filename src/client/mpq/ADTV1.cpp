@@ -174,3 +174,13 @@ std::string ADTV1::getName()
 {
 	return std::string(_name);
 }
+
+std::vector<std::string> ADTV1::getModels()
+{
+	return readStringChunk(_data + GLOBAL_OFFSET + _header->offsetMMDX);
+}
+
+std::vector<std::string> ADTV1::getWorldModels() 
+{
+	return readStringChunk(_data + GLOBAL_OFFSET + _header->offsetMWMO);
+}

@@ -51,39 +51,43 @@ void ExtractorClassic::init(std::string clientPath)
 	_version = Version::CLIENT_CLASSIC;
 }
 
-void ExtractorClassic::extract(std::string outputPath, bool exportMap, bool generateVmaps)
+void ExtractorClassic::extract(std::string outputPath, bool exportMap, bool genVmaps)
 {
 
     // For Classic, we only need Maps and AreaTable data.
     readMaps();
-    readAreaTable();
 
     if (exportMap)
     {
+        readAreaTable();
         exportMaps(outputPath);
     }
 
-    if (generateVmaps)
+    if (genVmaps)
     {
-        //readLiquidType();
-        bool cacheToDisk = _config->getBool(PROP_VMAP_CACHE_TO_DISK);
-        Path path(outputPath + PATH_MODELS);
-        File file(path);
+        generateVmaps(outputPath);
+    }
+}
 
-        if (cacheToDisk)
-        {
-            file.createDirectories();
-        }
+void ExtractorClassic::generateVmaps(std::string outputPath)
+{
+    bool cacheToDisk = _config->getBool(PROP_VMAP_CACHE_TO_DISK);
+    Path path(outputPath + PATH_MODELS);
+    File file(path);
 
-        exportWMOs(path.toString(), cacheToDisk);
-        exportModels(path.toString(), cacheToDisk);
+    if (cacheToDisk)
+    {
+        file.createDirectories();
+    }
 
-        _logger.information("Extraction complete");
+    exportWMOs(path.toString(), cacheToDisk);
+    exportModels(path.toString(), cacheToDisk);
 
-        if (cacheToDisk)
-        {
-            //file.remove(true);
-        }
+    _logger.information("Extraction complete");
+
+    if (cacheToDisk)
+    {
+        file.remove(true);
     }
 }
 
@@ -105,6 +109,7 @@ void ExtractorClassic::exportMaps(std::string outputPath)
     float floatToByteLimit = (float)_config->getDouble(PROP_FLOAT_TO_BYTE_LIMIT);
     float floatToShortLimit = (float)_config->getDouble(PROP_FLOAT_TO_SHORT_LIMIT);
     unsigned int maxAreaId = _areas.rbegin()->first;
+    std::vector<std::string> temp;
 
 	for (auto it = _maps.begin(); it != _maps.end(); it++)
 	{
@@ -157,6 +162,15 @@ void ExtractorClassic::exportMaps(std::string outputPath)
 						continue;
 					}
 
+                    temp = adt->getModels();
+                    for (auto it = temp.begin(); it < temp.end(); it++)
+                    {
+                        _models.push_back((*it).substr(0, (*it).find_last_of(".")) + ".m2");
+                    }
+
+                    temp = adt->getWorldModels();
+                    _worldModels.insert(_worldModels.end(), temp.begin(), temp.end());
+
 					if (!map.save(path.toString()))
 					{
 						_logger.error("Error while saving the map file");
@@ -173,6 +187,14 @@ void ExtractorClassic::exportMaps(std::string outputPath)
 
 		delete wdt;
 	}
+
+    // Sorting and removing duplicate models / worldobjects.
+    std::sort(_models.begin(), _models.end());
+    std::sort(_worldModels.begin(), _worldModels.end());
+    _models.erase(std::unique(_models.begin(), _models.end()), _models.end());
+    _worldModels.erase(std::unique(_worldModels.begin(), _worldModels.end()), _worldModels.end());
+    _logger.information("Total WMOs (refined): %z", _worldModels.size());
+    _logger.information("Total models (refined): %z", _models.size());
 }
 
 bool ExtractorClassic::convertADT(ADTV1* adt, MapFile* map, unsigned int maxAreaId, bool allowHeightLimit, bool allowFloatToInt, float floatHeightDeltaLimit, float floatLiquidDeltaLimit, float floatToByteLimit, float floatToShortLimit, float useMinHeight)
@@ -365,7 +387,10 @@ void ExtractorClassic::exportWMOs(std::string outputPath, bool cacheToDisk)
     bool preciseVectorData = _config->getBool(PROP_VMAP_WMO_PRECISE_VECTOR_DATA);
     Path path(outputPath);
 
-    std::vector<std::string> wmos = _mpqManager->getWMOList();
+    if (!_worldModels.size())
+    {
+        _worldModels = _mpqManager->getWMOList();
+    }
     Path temp;
     std::string flatName;
     std::string hash;
@@ -373,9 +398,9 @@ void ExtractorClassic::exportWMOs(std::string outputPath, bool cacheToDisk)
     DigestOutputStream ds(engine);
     char groupFile[1024];
     unsigned int count = 0;
-    unsigned int total = (unsigned int) wmos.size();
+    unsigned int total = (unsigned int)_worldModels.size();
 
-    for (auto it = wmos.begin(); it < wmos.end(); ++it)
+    for (auto it = _worldModels.begin(); it < _worldModels.end(); ++it)
     {
         _logger.debug("Extracting wmo %s", *it);
         temp.assign(*it, Path::Style::PATH_WINDOWS); // Force path to interpret it with '\' as separator.
@@ -640,16 +665,19 @@ void ExtractorClassic::exportModels(std::string outputPath, bool cacheToDisk)
 
     Path path(outputPath);
 
-    std::vector<std::string> models = _mpqManager->getModelsList();
+    if (!_models.size())
+    {
+        _models = _mpqManager->getModelsList();
+    }
     Path temp;
     std::string flatName;
     std::string hash;
     MD5Engine engine;
     DigestOutputStream ds(engine);
     unsigned int count = 0;
-    unsigned int total = (unsigned int) models.size();
+    unsigned int total = (unsigned int)_models.size();
 
-    for (auto it = models.begin(); it < models.end(); ++it)
+    for (auto it = _models.begin(); it < _models.end(); ++it)
     {
         _logger.debug("Extracting model %s", *it);
         temp.assign(*it, Path::Style::PATH_WINDOWS); // Force path to interpret it with '\' as separator.

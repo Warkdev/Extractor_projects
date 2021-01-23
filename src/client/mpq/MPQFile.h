@@ -28,7 +28,16 @@
 #include <string>
 #include "Poco/Logger.h"
 
+#pragma warning(disable : 4200) // Disable MS-specific warnings
+
 using Poco::Logger;
+
+struct GenericStringChunk
+{
+	const char magic[4];
+	unsigned int size;
+	char* strings[0];
+};
 
 class MPQFile
 {
@@ -40,6 +49,7 @@ class MPQFile
 		MPQFile();
 		bool checkHeader(char magic[4], std::string expected);
 		bool checkOptionalHeader(char magic[4], std::string expected);
+		std::vector<std::string> readStringChunk(unsigned char* offset);
 
 		Logger& _logger = Logger::get("Extractor");
 		std::string _name;

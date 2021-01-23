@@ -38,7 +38,7 @@ WDT::~WDT()
 
 bool WDT::parse()
 {
-	_logger.information("Parsing WDT file %s", _name);
+	_logger.debug("Parsing WDT file %s", _name);
 
 	unsigned int offset = 0;
 

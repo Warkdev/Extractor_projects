@@ -42,6 +42,7 @@ class ExtractorClassic : public Extractor
 		virtual void extract(std::string outputPath, bool exportMap, bool generateVmaps);
 	protected:
 		virtual void exportMaps(std::string outputPath);
+		virtual void generateVmaps(std::string outputPath);
 		virtual void exportWMOs(std::string outputPath, bool cacheToDisk);
 		virtual void exportModels(std::string outputPath, bool cacheToDisk);
 		bool convertADT(ADTV1* adt, MapFile* map, unsigned int maxAreaId, bool allowHeightLimit, bool allowFloatToInt, float floatHeightDeltaLimit, float floatLiquidDeltaLimit, float floatToByteLimit, float floatToShortLimit, float useMinHeight);

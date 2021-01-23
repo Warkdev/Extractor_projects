@@ -23,6 +23,7 @@
  */
 
 #include "MPQFile.h"
+#include "Poco/String.h"
 
 MPQFile::MPQFile()
 {
@@ -69,4 +70,29 @@ bool MPQFile::checkOptionalHeader(char magic[4], std::string expected)
 	}
 
 	return true;
+}
+
+std::vector<std::string> MPQFile::readStringChunk(unsigned char* offset)
+{
+	std::vector<std::string> ret;
+
+	GenericStringChunk* chunk = (GenericStringChunk*) offset;
+
+	if (!chunk->size)
+	{
+		return ret;
+	}
+
+	unsigned char* start = offset + 8;
+	unsigned char* current = start;
+	std::string temp;
+
+	while (current - start < chunk->size)
+	{
+		temp.assign((char *)current);
+		ret.push_back(Poco::toLower(temp));
+		current += temp.size() + 1;
+	}
+
+	return ret;
 }
