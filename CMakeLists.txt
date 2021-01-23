@@ -83,10 +83,16 @@ endif()
 set(EXTRACTOR_BINARIES_DIR "${CMAKE_SOURCE_DIR}/Extractor_Binaries")
 
 # External Libs
+## ZLIB
+add_subdirectory(./libs/zlib)
 ## POCO
 add_subdirectory(./libs/poco)
 ## StormLib
 add_subdirectory(./libs/StormLib)
+## G3Dlite
+add_subdirectory(./libs/g3dlite)
+## RecastNavigation::Detour
+add_subdirectory(./libs/recastnavigation)
 
 #=======================================================#
 #extractor
@@ -151,6 +157,8 @@ target_link_libraries(extractor
     storm
     Poco::Foundation
     Poco::Util
+    g3dlite
+    RecastNavigation::Detour
 )
 
 install(
