@@ -25,22 +25,22 @@
 #include "Extractor.h"
 #include "Poco/File.h"
 #include "mpq/DBC.h"
+#include "Poco/MD5Engine.h"
+#include "Poco/DigestStream.h"
 
 using Poco::File;
-
-void Extractor::init(std::string clientPath)
-{
-	//_logger.information("You should not see this message");
-}
+using Poco::MD5Engine;
+using Poco::DigestOutputStream;
+using Poco::DigestEngine;
 
 void Extractor::loadMPQs()
 {
 	_mpqManager->load(_listMPQ);
 }
 
-void Extractor::exportDBC(std::string outputPath)
+void Extractor::exportDBC()
 {
-	Path path(outputPath + PATH_DBC);
+	Path path(_outputDBCPath);
 	File file(path);
 	file.createDirectories();
 	std::vector<std::string> dbcList = _mpqManager->getDBCList();
@@ -59,11 +59,6 @@ void Extractor::exportDBC(std::string outputPath)
 		}
 	}
 	_logger.information("DBC Extraction Summary: %i / %z", count, dbcList.size());
-}
-
-void Extractor::extract(std::string outputPath, bool exportMap, bool generateVmaps)
-{
-	_logger.information("You should not end up here");
 }
 
 void Extractor::packAreaData(MapFile* map)
@@ -98,7 +93,7 @@ void Extractor::packAreaData(MapFile* map)
     }
 }
 
-void Extractor::packHeight(MapFile* map, bool allowFloatToInt, float floatHeightDeltaLimit, float floatToByteLimit, float floatToShortLimit)
+void Extractor::packHeight(MapFile* map)
 {
     map->header.heightMapOffset = map->header.areaMapOffset + map->header.areaMapSize;
     map->header.heightMapSize = sizeof(MapFile::MapHeightHeader);
@@ -107,21 +102,21 @@ void Extractor::packHeight(MapFile* map, bool allowFloatToInt, float floatHeight
     float diff = map->mapHeightHeader.gridMaxHeight - map->mapHeightHeader.gridHeight;
 
     // Don't store if the surface is flat.
-    if ((map->mapHeightHeader.gridHeight == map->mapHeightHeader.gridMaxHeight) || (allowFloatToInt && diff < floatHeightDeltaLimit))
+    if ((map->mapHeightHeader.gridHeight == map->mapHeightHeader.gridMaxHeight) || (_allowFloatToInt && diff < _flatHeightDeltaLimit))
     {
         map->mapHeightHeader.flags |= MapFile::MAP_HEIGHT_NO_HEIGHT;
     }
     else
     {
-        if (allowFloatToInt)
+        if (_allowFloatToInt)
         {
-            if (diff < floatToByteLimit)
+            if (diff < _floatToByteLimit)
             {
                 map->mapHeightHeader.flags |= MapFile::MAP_HEIGHT_AS_INT8;
                 map->heightStep = 255 / diff;
                 map->header.heightMapSize += 33025; // Size of V8 & V9 on a single byte.
             }
-            else if (diff < floatToShortLimit)
+            else if (diff < _floatToShortLimit)
             {
                 map->mapHeightHeader.flags |= MapFile::MAP_HEIGHT_AS_INT16;
                 map->heightStep = 65535 / diff;
@@ -139,7 +134,7 @@ void Extractor::packHeight(MapFile* map, bool allowFloatToInt, float floatHeight
     }
 }
 
-void Extractor::packLiquid(MapFile* map, bool allowFloatToInt, float floatLiquidDeltaLimit, float useMinHeight)
+void Extractor::packLiquid(MapFile* map)
 {
     map->fullLiquidType = false;
     unsigned char liquidType = map->liquidFlags[0][0];
@@ -203,7 +198,7 @@ void Extractor::packLiquid(MapFile* map, bool allowFloatToInt, float floatLiquid
                 }
                 else
                 {
-                    map->liquidHeight[y][x] = useMinHeight;
+                    map->liquidHeight[y][x] = _useMinHeight;
                 }
             }
         }
@@ -223,7 +218,7 @@ void Extractor::packLiquid(MapFile* map, bool allowFloatToInt, float floatLiquid
         }
 
         // Not need store if flat surface
-        if (allowFloatToInt && (maxHeight - minHeight) < floatLiquidDeltaLimit)
+        if (_allowFloatToInt && (maxHeight - minHeight) < _flatLiquidDeltaLimit)
         {
             map->mapLiquidHeader.flags |= MapFile::MAP_LIQUID_NO_HEIGHT;
         }
@@ -263,10 +258,10 @@ void Extractor::packHoles(MapFile* map)
     map->header.holesSize = sizeof(map->holes);
 }
 
-void Extractor::packData(char* version, unsigned int build,  MapFile* map, bool allowFloatToInt, float floatHeightDeltaLimit, float floatLiquidDeltaLimit, float floatToByteLimit, float floatToShortLimit, float useMinHeight)
+void Extractor::packData(MapFile* map)
 {
-    sprintf(map->header.versionMagic, version);
-    map->header.buildMagic = build;
+    sprintf(map->header.versionMagic, _mapVersion.c_str());
+    map->header.buildMagic = _buildVersion;
     map->header.areaMapOffset = sizeof(map->header);
     map->header.areaMapSize = sizeof(MapFile::MapAreaHeader);
 
@@ -274,10 +269,10 @@ void Extractor::packData(char* version, unsigned int build,  MapFile* map, bool 
     packAreaData(map);
 
     // Then, pack height data.
-    packHeight(map, allowFloatToInt, floatHeightDeltaLimit, floatToByteLimit, floatToShortLimit);
+    packHeight(map);
 
     // Then, pack liquid data.
-    packLiquid(map, allowFloatToInt, floatLiquidDeltaLimit, useMinHeight);
+    packLiquid(map);
 
     // Then, pack holes data.
     packHoles(map);
@@ -400,4 +395,18 @@ void Extractor::readLiquidType()
 	}
 
 	delete dbc;
+}
+
+std::string Extractor::getUniformName(std::string filename)
+{
+    MD5Engine engine;
+    DigestOutputStream ds(engine);
+    std::string hash;
+
+    ds << filename;
+    hash = DigestEngine::digestToHex(engine.digest());
+    ds.clear();
+    ds.close();
+
+    return hash;
 }

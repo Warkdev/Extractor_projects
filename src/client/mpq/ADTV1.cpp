@@ -125,6 +125,17 @@ MCLQ* ADTV1::getLiquid(MCNK* chunk)
 	return liq;
 }
 
+MCRF* ADTV1::getModelReferences(MCNK* chunk)
+{
+	MCRF* refs = (MCRF*)((unsigned char*)chunk + chunk->offsetMCRF);
+	if (!checkHeader(refs->magic, HEADER_MCRF))
+	{
+		return NULL;
+	}
+
+	return refs;
+}
+
 bool ADTV1::hasLiquid(MCNK* chunk)
 {
 	return chunk->flags & MCNK_IS_RIVER || chunk->flags & MCNK_IS_OCEAN || chunk->flags & MCNK_IS_MAGMA || chunk->flags & MCNK_IS_SLIME;
@@ -180,7 +191,55 @@ std::vector<std::string> ADTV1::getModels()
 	return readStringChunk(_data + GLOBAL_OFFSET + _header->offsetMMDX);
 }
 
+MMID* ADTV1::getModelsOffset()
+{
+	MMID* offsets = (MMID*)(_data + GLOBAL_OFFSET + _header->offsetMMID);
+
+	if (!checkHeader(offsets->magic, HEADER_MMID))
+	{
+		return NULL;
+	}
+
+	return offsets;
+}
+
+MDDF* ADTV1::getModelsPlacement()
+{
+	MDDF* placement = (MDDF*)(_data + GLOBAL_OFFSET + _header->offsetMDDF);
+
+	if (!checkHeader(placement->magic, HEADER_MDDF))
+	{
+		return NULL;
+	}
+
+	return placement;
+}
+
 std::vector<std::string> ADTV1::getWorldModels() 
 {
 	return readStringChunk(_data + GLOBAL_OFFSET + _header->offsetMWMO);
+}
+
+MWID* ADTV1::getWorldModelsOffset()
+{
+	MWID* offsets = (MWID*)(_data + GLOBAL_OFFSET + _header->offsetMWID);
+
+	if (!checkHeader(offsets->magic, HEADER_MWID))
+	{
+		return NULL;
+	}
+
+	return offsets;
+}
+
+MODF* ADTV1::getWorldModelsPlacement()
+{
+	MODF* placement = (MODF*)(_data + GLOBAL_OFFSET + _header->offsetMODF);
+
+	if (!checkHeader(placement->magic, HEADER_MODF))
+	{
+		return NULL;
+	}
+
+	return placement;
 }

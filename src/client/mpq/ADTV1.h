@@ -27,8 +27,12 @@
 #include <string>
 #include "Poco/Logger.h"
 #include "MPQFile.h"
+#include "G3D/Vector3.h"
+#include "G3D/AABox.h"
 
 using Poco::Logger;
+using G3D::Vector3;
+using G3D::AABox;
 
 struct MCVT {
 	char magic[4];
@@ -39,11 +43,7 @@ struct MCVT {
 struct MCNR {
 	char magic[4];
 	unsigned int size;
-	struct {
-		float x;
-		float y;
-		float z;
-	} position[145];
+	Vector3 position[145];
 };
 
 struct MCLQ {
@@ -108,10 +108,64 @@ struct MCNK {
 	unsigned int* refList;
 };
 
+struct MCRF {
+	char magic[4];
+	unsigned int size;
+	unsigned int modelRefs[];
+};
+
+// Model information and placement information.
 struct MDDX {
-	const char magic[4];
+	char magic[4];
 	unsigned int size;
 	char* filenames[];
+};
+
+struct MMID {
+	char magic[4];
+	unsigned int size;
+	unsigned int offsets[];
+};
+
+struct MDDF {
+	char magic[4];
+	unsigned int size;
+	struct DoodadDef {
+		unsigned int mmidEntry;
+		Vector3 position;
+		Vector3 orientation;
+		unsigned short scale;
+		unsigned short flags;
+	} placements[];
+};
+
+// World models information and placement information.
+struct MWMO {
+	char magic[4];
+	unsigned int size;
+	char* filenames[];
+};
+
+struct MWID {
+	char magic[4];
+	unsigned int size;
+	unsigned int offsets[];
+};
+
+struct MODF {
+	char magic[4];
+	unsigned int size;
+	struct MapObjDef {
+		unsigned int mwidEntry;
+		unsigned int uniqueId;
+		Vector3 position;
+		Vector3 orientation;
+		AABox boundingBox;
+		unsigned short flags;
+		unsigned short doodadSet;
+		unsigned short nameSet;
+		unsigned short padding;
+	} placements[];
 };
 /**
 * This file represent an ADT file from a WoW Vanilla client.
@@ -130,6 +184,7 @@ class ADTV1 : public MPQFile
 		MCNK* getCell(unsigned int x, unsigned int y);
 		MCVT* getVertices(MCNK* chunk);
 		MCLQ* getLiquid(MCNK* chunk);
+		MCRF* getModelReferences(MCNK* chunk);
 		bool hasLiquid(MCNK* chunk);
 		bool hasLiquid(MCLQ::MCLQLayer* liquid, unsigned int x, unsigned int y);
 		bool hasNoLiquid(MCLQ::MCLQLayer* liquid, unsigned int x, unsigned int y);
@@ -140,8 +195,15 @@ class ADTV1 : public MPQFile
 		bool isSlime(MCNK* chunk);
 		bool hasNoLiquid(MCNK* chunk);
 		std::string getName();
+		// Model information
 		std::vector<std::string> getModels();
+		MMID* getModelsOffset();
+		MDDF* getModelsPlacement();
+
+		// World model information
 		std::vector<std::string> getWorldModels();
+		MWID* getWorldModelsOffset();
+		MODF* getWorldModelsPlacement();
 	private:
 		static const unsigned int GLOBAL_OFFSET = 20;
 		static const unsigned int CHUNK_TILE_HEIGHTMAP_LENGTH = 9;
@@ -149,19 +211,6 @@ class ADTV1 : public MPQFile
 		const std::string HEADER_MCIN = "NICM";
 		/** MCNK Chunk with detailed chunk information in the ADT File. */
 		const std::string HEADER_MCNK = "KNCM";
-		/** MODF Chunk for WMO placement, if any. */
-		struct MODF {
-			unsigned int mwidEntry;
-			unsigned int uniqueId;
-			float position[3];
-			float orientation[3];
-			float upperExtents[3];
-			float lowerExtents[3];
-			unsigned short flags;
-			unsigned short doodadSet;
-			unsigned short nameSet;
-			unsigned short padding;
-		};
 		/** File version - REVM chunk */
 		const std::string HEADER_MVER = "REVM";
 		struct MVER {
@@ -202,6 +251,7 @@ class ADTV1 : public MPQFile
 		const std::string HEADER_MCNR = "RNCM";
 		const std::string HEADER_MCLQ = "QLCM";
 		const std::string HEADER_MCLY = "YLCM";
+		const std::string HEADER_MCRF = "FRCM";
 
 		enum ADTMCNKFlag {
 			MCNK_HAS_MCSH = 0x01,
@@ -241,6 +291,18 @@ class ADTV1 : public MPQFile
 			MCLQ_HAS_LIQUID = 0x06,
 			MCLQ_NO_LIQUID = 0x0F
 		};
+
+		/** ADT - DIMM Chunk */
+		const std::string HEADER_MMID = "DIMM";
+
+		/** ADT - DIWM Chunk */
+		const std::string HEADER_MWID = "DIWM";
+
+		/** ADT - FDDM Chunk */
+		const std::string HEADER_MDDF = "FDDM";
+
+		/** ADT - FODM Chunk */
+		const std::string HEADER_MODF = "FDOM";
 };
 
 #endif

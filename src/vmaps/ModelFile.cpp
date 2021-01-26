@@ -85,8 +85,8 @@ bool ModelFile::save(std::string path)
     for (int i = 0; i < header.nGroups; i++)
     {
         writer << groups[i].flags << groups[i].groupWMOID
-            << groups[i].boundingBox.min.x << groups[i].boundingBox.min.y << groups[i].boundingBox.min.z
-            << groups[i].boundingBox.max.x << groups[i].boundingBox.max.y << groups[i].boundingBox.max.z
+            << groups[i].boundingBox.low().x << groups[i].boundingBox.low().y << groups[i].boundingBox.low().z
+            << groups[i].boundingBox.high().x << groups[i].boundingBox.high().y << groups[i].boundingBox.high().z
             << groups[i].liquidFlags;
 
         // Group Header.

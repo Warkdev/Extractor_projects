@@ -260,6 +260,12 @@ bool WMOV1::useLiquidTypeFromDBC()
 }
 
 // WMOGroup handling.
+WMOGroupV1::WMOGroupV1()
+{
+	_name = "";
+	_size = 0;
+	_data = 0;
+}
 
 WMOGroupV1::WMOGroupV1(std::string name, unsigned char* data, long size)
 {

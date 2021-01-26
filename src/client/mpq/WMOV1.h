@@ -28,10 +28,20 @@
 #include <string>
 #include "Poco/Logger.h"
 #include "MPQFile.h"
+#include "G3D/AABox.h"
+#include "G3D/Vector2.h"
+#include "G3D/Vector3.h"
+#include "G3D/Plane.h"
+#include "G3D/Quat.h"
 
 #pragma warning(disable : 4200) // Disable MS-specific warnings
 
 using Poco::Logger;
+using G3D::AABox;
+using G3D::Vector2;
+using G3D::Vector3;
+using G3D::Plane;
+using G3D::Quat;
 
 struct MOTX {
 	char magic[4];
@@ -77,18 +87,7 @@ struct MOGI {
 	unsigned int size;
 	struct GroupInfo {
 		unsigned int flags;
-		struct {
-			struct {
-				float x;
-				float y;
-				float z;
-			} min;
-			struct {
-				float x;
-				float y;
-				float z;
-			} max;
-		} boundinbBox;;
+		AABox boundinbBox;;
 	} info[];
 };
 
@@ -101,11 +100,7 @@ struct MOSB {
 struct MOPV {
 	char magic[4];
 	unsigned int size;
-	struct Vertex {
-		float x;
-		float y;
-		float z;
-	} portalVertexList[];
+	Vector3 portalVertexList[];
 };
 
 struct MOPT {
@@ -114,25 +109,14 @@ struct MOPT {
 	struct Portal {
 		unsigned short startVertex;
 		unsigned short count;
-		struct {
-			struct {
-				float x;
-				float y;
-				float z;
-			} normal;
-			float distance;
-		} plane;
+		Plane plane;
 	} portalList[];
 };
 
 struct MOVV {
 	char magic[4];
 	unsigned int size;
-	struct {
-		float x;
-		float y;
-		float z;
-	} visibleBlocksVertices[];
+	Vector3 visibleBlocksVertices[];
 };
 
 struct MOVB {
@@ -175,11 +159,7 @@ struct MOLT {
 			unsigned char r;
 			unsigned char a;
 		} color;
-		struct {
-			float x;
-			float y;
-			float z;
-		} position;
+		Vector3 position;
 		float intensity;
 		float unknown[4];
 		float attenStart;
@@ -210,17 +190,8 @@ struct MODD {
 	struct DoodadDef {
 		unsigned int nameIdx;
 		unsigned int flag;
-		struct {
-			float x;
-			float y;
-			float z;
-		} position;
-		struct {
-			float x;
-			float y;
-			float z;
-			float w;
-		} orientation;
+		Vector3 position;
+		Quat orientation;
 		float scale;
 		struct {
 			unsigned char b;
@@ -242,11 +213,7 @@ struct MFOG {
 	unsigned int size;
 	struct Fog {
 		unsigned int flag;
-		struct {
-			float x;
-			float y;
-			float z;
-		} position;
+		Vector3 position;
 		float smallerRadius;
 		float largerRadius;
 		struct iFog {
@@ -266,14 +233,7 @@ struct MCVP {
 	char magic[4];
 	unsigned int size;
 	struct {
-		struct {
-			struct {
-				float x;
-				float y;
-				float z;
-			} normal;
-			float distance;
-		} plane;
+		Plane plane;
 	} convexVolumePlanes[];
 };
 
@@ -322,18 +282,7 @@ private:
 			unsigned char a;
 		} ambColor;
 		unsigned int wmoID;
-		struct {
-			struct {
-				float x;
-				float y;
-				float z;
-			} min;
-			struct {
-				float x;
-				float y;
-				float z;
-			} max;
-		} boundingBox;
+		AABox boundingBox;
 		unsigned short flags;
 		unsigned short numLod;
 	} * _header;
@@ -406,18 +355,7 @@ struct MOGP {
 		unsigned int groupName;
 		unsigned int descriptiveGroupName;
 		unsigned int flags;
-		struct {
-			struct {
-				float x;
-				float y;
-				float z;
-			} min;
-			struct {
-				float x;
-				float y;
-				float z;
-			} max;
-		} boundingBox;
+		AABox boundingBox;
 		unsigned short portalStart;
 		unsigned short portalCount;
 		unsigned short transBatchCount;
@@ -461,33 +399,19 @@ struct MOVI {
 struct MOVT {
 	char magic[4];
 	unsigned int size;
-	struct Vertex
-	{
-		float x;
-		float y;
-		float z;
-	} vertices[];
+	Vector3 vertices[];
 };
 
 struct MONR {
 	char magic[4];
 	unsigned int size;
-	struct Normal
-	{
-		float x;
-		float y;
-		float z;
-	} normals[];
+	Vector3 normals[];
 };
 
 struct MOTV {
 	char magic[4];
 	unsigned int size;
-	struct TextureVertex
-	{
-		float x;
-		float y;
-	} textVertex[];
+	Vector2 textVertex[];
 };
 
 struct MOBA {
@@ -559,11 +483,7 @@ struct MLIQ {
 		unsigned int yVerts;
 		unsigned int xTiles;
 		unsigned int yTiles;
-		struct {
-			float x;
-			float y;
-			float z;
-		} baseCoords;
+		Vector3 baseCoords;
 		unsigned short materialId;
 	} header;
 };
@@ -608,6 +528,7 @@ struct MORI {
 class WMOGroupV1 : public MPQFile
 {
 	public:
+		WMOGroupV1();
 		WMOGroupV1(std::string name, unsigned char* data, long size);
 		~WMOGroupV1();
 		bool parse();

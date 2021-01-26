@@ -23,17 +23,7 @@
  */
 
 
-#include "Poco/AutoPtr.h"
-#include "Poco/PatternFormatter.h"
-#include "Poco/FormattingChannel.h"
 #include "Poco/Logger.h"
-#ifdef _WIN32
-#include "Poco/WindowsConsoleChannel.h"
-#endif
-
-#ifdef __linux__
-#include "Poco/ConsoleChannel.h"
-#endif
 
 #include "ExtractorApp.h"
 #include "Poco/Util/IntValidator.h"
@@ -50,17 +40,7 @@ using Poco::Util::HelpFormatter;
 using Poco::Util::AbstractConfiguration;
 using Poco::Util::OptionCallback;
 using Poco::Util::IntValidator;
-using Poco::AutoPtr;
-using Poco::Message;
 using Poco::Logger;
-using Poco::PatternFormatter;
-using Poco::FormattingChannel;
-#ifdef _WIN32
-using Poco::WindowsConsoleChannel;
-#endif
-#ifdef __linux__
-using Poco::ConsoleChannel;
-#endif
 
 void ExtractorApp::initialize(Application& self)
 {
@@ -92,7 +72,7 @@ void ExtractorApp::defineOptions(OptionSet& options)
 			.callback(OptionCallback<ExtractorApp>(this, &ExtractorApp::handleHelp)));
 
 	options.addOption(
-		Option("extract-map", "m", "Extract Maps from the game archives")
+		Option("extract-map", "e", "Extract Maps from the game archives")
 			.required(false)
 			.repeatable(false)
 			.argument("<0|1>")
@@ -114,6 +94,14 @@ void ExtractorApp::defineOptions(OptionSet& options)
 		.argument("<0|1>")
 		.validator(new IntValidator(0, 1))
 		.callback(OptionCallback<ExtractorApp>(this, &ExtractorApp::handleGenerateVmap)));
+
+	options.addOption(
+		Option("generate-mmap", "m", "Generate Mmaps from the game archives")
+		.required(false)
+		.repeatable(false)
+		.argument("<0|1>")
+		.validator(new IntValidator(0, 1))
+		.callback(OptionCallback<ExtractorApp>(this, &ExtractorApp::handleGenerateMmap)));
 
 	options.addOption(
 		Option("client-path", "c", "Indicates the game folder location")
@@ -143,6 +131,7 @@ void ExtractorApp::handleExtractMap(const std::string& name, const std::string& 
 	{
 		_extractMaps = false;
 	}
+	config().setBool(FLAG_EXPORT_MAPS, _extractMaps);
 }
 
 void ExtractorApp::handleExtractDbc(const std::string& name, const std::string& value)
@@ -151,6 +140,7 @@ void ExtractorApp::handleExtractDbc(const std::string& name, const std::string& 
 	{
 		_extractDbcs = false;
 	}
+	config().setBool(FLAG_EXTRACT_DBCS, _extractDbcs);
 }
 
 void ExtractorApp::handleClientPath(const std::string& name, const std::string& value) 
@@ -159,6 +149,7 @@ void ExtractorApp::handleClientPath(const std::string& name, const std::string& 
 	{
 		_clientPath = value;
 	}
+	config().setString(FLAG_CLIENT_PATH, _clientPath);
 }
 
 void ExtractorApp::handleOutputPath(const std::string& name, const std::string& value)
@@ -167,6 +158,7 @@ void ExtractorApp::handleOutputPath(const std::string& name, const std::string& 
 	{
 		_outputPath = value;
 	}
+	config().setString(FLAG_EXPORT_PATH, _outputPath);
 }
 
 void ExtractorApp::handleGenerateVmap(const std::string& name, const std::string& value)
@@ -175,6 +167,16 @@ void ExtractorApp::handleGenerateVmap(const std::string& name, const std::string
 	{
 		_generateVmaps = false;
 	}
+	config().setBool(FLAG_EXPORT_VMAPS, _generateVmaps);
+}
+
+void ExtractorApp::handleGenerateMmap(const std::string& name, const std::string& value)
+{
+	if (!std::stoi(value))
+	{
+		_generateMmaps = false;
+	}
+	config().setBool(FLAG_EXPORT_MMAPS, _generateMmaps);
 }
 
 void ExtractorApp::displayHelp()
@@ -224,6 +226,8 @@ void ExtractorApp::printSummary()
 	logger().information("Extract DBCs: %s", std::string(_extractDbcs ? "true" : "false"));
 	logger().information("----- VMap generator arguments ----");
 	logger().information("Generate VMaps: %s", std::string(_generateVmaps ? "true" : "false"));
+	logger().information("----- MMap generator arguments ----");
+	logger().information("Generate MMaps: %s", std::string(_generateMmaps ? "true" : "false"));
 	logger().information("");
 	logger().information("");
 
@@ -260,15 +264,14 @@ void ExtractorApp::detectBuild()
 
 void ExtractorApp::extractData()
 {
-	Path path(_clientPath + "/Data");
-	_extractor->init(path.toString());
+	_extractor->init();
 	_extractor->loadMPQs();
 	if (_extractDbcs)
 	{
-		_extractor->exportDBC(_outputPath);
+		_extractor->exportDBC();
 	}
-	if (_extractMaps || _generateVmaps)
+	if (_extractMaps || _generateVmaps || _generateMmaps)
 	{
-		_extractor->extract(_outputPath, _extractMaps, _generateVmaps);
+		_extractor->exportMaps();
 	}
 }

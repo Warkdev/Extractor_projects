@@ -57,27 +57,27 @@ bool M2V1::parse()
 	return supported;
 }
 
-unsigned int M2V1::getNCollisionVertices()
+unsigned int const M2V1::getNCollisionVertices()
 {
 	return _header->collisionVertices.size;
 }
 
-C3Vector* M2V1::getCollisionVertices()
+const Vector3* M2V1::getCollisionVertices()
 {
 	if (_header->collisionVertices.size)
 	{
-		return (C3Vector*)(_data + _header->collisionVertices.offset);
+		return (Vector3*)(_data + _header->collisionVertices.offset);
 	}
 
 	return NULL;
 }
 
-unsigned int M2V1::getNCollisionTriangles()
+const unsigned int M2V1::getNCollisionTriangles()
 {
 	return _header->collisionTriangles.size;
 }
 
-unsigned short* M2V1::getCollisionTriangles()
+const unsigned short* M2V1::getCollisionTriangles()
 {
 	if (_header->collisionTriangles.size)
 	{

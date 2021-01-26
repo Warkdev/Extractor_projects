@@ -34,26 +34,31 @@ using Poco::Util::LayeredConfiguration;
 class ExtractorClassic : public Extractor
 {
 	public:
-		ExtractorClassic(LayeredConfiguration* config)
+		ExtractorClassic(LayeredConfiguration* config) : Extractor(config)
 		{
-			_config = config;
+			_mapVersion = MAP_FILE_VERSION_CLASSIC;
+			_buildVersion = CLIENT_BUILD_CLASSIC;
 		}
-		virtual void init(std::string clientPath);
-		virtual void extract(std::string outputPath, bool exportMap, bool generateVmaps);
+		virtual void init();
 	protected:
-		virtual void exportMaps(std::string outputPath);
-		virtual void generateVmaps(std::string outputPath);
-		virtual void exportWMOs(std::string outputPath, bool cacheToDisk);
-		virtual void exportModels(std::string outputPath, bool cacheToDisk);
-		bool convertADT(ADTV1* adt, MapFile* map, unsigned int maxAreaId, bool allowHeightLimit, bool allowFloatToInt, float floatHeightDeltaLimit, float floatLiquidDeltaLimit, float floatToByteLimit, float floatToShortLimit, float useMinHeight);
+		// Inherited
+		virtual void exportMaps();
+		//virtual void generateVmaps(std::string outputPath);
+		//virtual void exportWMOs(std::string outputPath, bool cacheToDisk);
+		//virtual void exportModels(std::string outputPath, bool cacheToDisk);
+
+		bool parseMap(ADTV1* adt, unsigned int mapId, unsigned int x, unsigned int y, unsigned int maxAreaId);
+
+		// Map export
 		void handleAreas(MapFile* map, MCNK* cell, unsigned int i, unsigned int j, unsigned int maxAreaId);
-		void handleHeight(MapFile* map, ADTV1* adt, MCNK* cell, unsigned int i, unsigned int j, bool allowHeightLimit, float useMinHeight);
+		void handleHeight(MapFile* map, ADTV1* adt, MCNK* cell, unsigned int i, unsigned int j);
 		void handleLiquid(MapFile* map, ADTV1* adt, MCNK* cell, unsigned int i, unsigned int j);
 		void handleHoles(MapFile* map, MCNK* cell, unsigned int i, unsigned int j);
 
-		bool convertWMORoot(WMOV1* wmo, ModelFile* file);
-		bool convertWMOGroup(WMOV1* root, WMOGroupV1* wmoGroup, ModelFile* file, unsigned int groupIdx, bool preciseVectorData);
-		bool convertModel(M2V1* model, ModelFile* file);
+		//bool convertWMORoot(WMOV1* wmo, ModelFile* file);
+		//bool convertWMOGroup(WMOV1* root, WMOGroupV1* wmoGroup, ModelFile* file, unsigned int groupIdx, bool preciseVectorData);
+		//bool convertModel(M2V1* model, ModelFile* file);
+		ModelInstance* spawnModel(Model* model, MDDF::DoodadDef* placement);
 		
 	private:
 		const std::string PATTERN_WDT = "World\\Maps\\%s\\%s.wdt";

@@ -22,12 +22,22 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
+#ifndef M2V1_H
+#define M2V1_H
+
 #include <string>
 #include "Poco/Logger.h"
 #include "MPQFile.h"
-#include "../../geometry/commons.h"
+#include "G3D/AABox.h"
+#include "G3D/Vector2.h"
+#include "G3D/Vector3.h"
+#include "G3D/Quat.h"
 
 using Poco::Logger;
+using G3D::AABox;
+using G3D::Vector2;
+using G3D::Vector3;
+using G3D::Quat;
 
 template<typename T>
 struct M2Array
@@ -71,7 +81,7 @@ struct M2Range
 
 struct M2Bounds
 {
-	CAaBox boundingBox;
+	AABox boundingBox;
 	float radius;
 };
 
@@ -100,10 +110,10 @@ struct M2CompBone
 	unsigned int flags;
 	unsigned short parentBone;
 	unsigned short submeshId;
-	M2Track<C3Vector> translation;
-	M2Track<C4Quaternion> rotation;
-	M2Track<C3Vector> scale;
-	C3Vector pivot;
+	M2Track<Vector3> translation;
+	M2Track<Quat> rotation;
+	M2Track<Vector3> scale;
+	Vector3 pivot;
 };
 
 struct M2Batch
@@ -125,17 +135,17 @@ struct M2Batch
 
 struct M2Box
 {
-	C3Vector modelRotationSpeedMin;
-	C3Vector modelRotationSpeedMax;
+	Vector3 modelRotationSpeedMin;
+	Vector3 modelRotationSpeedMax;
 };
 
 struct M2Vertex
 {
-	C3Vector position;
+	Vector3 position;
 	unsigned char boneWeights[4];
 	unsigned char boneIndices[4];
-	C3Vector normal;
-	C2Vector texCoords[2];
+	Vector3 normal;
+	Vector2 texCoords[2];
 };
 
 struct M2SkinSection
@@ -150,7 +160,7 @@ struct M2SkinSection
 	unsigned short boneComboIndex;
 	unsigned short boneInfluences;
 	unsigned short centerBoneIndex;
-	C3Vector centerPosition;
+	Vector3 centerPosition;
 };
 
 struct M2SkinProfile
@@ -164,7 +174,7 @@ struct M2SkinProfile
 
 struct M2Color
 {
-	M2Track<C3Vector> color;
+	M2Track<Vector3> color;
 	M2Track<unsigned short> alpha;
 };
 
@@ -182,9 +192,9 @@ struct M2TextureWeight
 
 struct M2TextureTransform
 {
-	M2Track<C3Vector> translation;
-	M2Track<C4Quaternion> rotation;
-	M2Track<C3Vector> scaling;
+	M2Track<Vector3> translation;
+	M2Track<Quat> rotation;
+	M2Track<Vector3> scaling;
 };
 
 struct M2Material
@@ -198,7 +208,7 @@ struct M2Attachment
 	unsigned int id;
 	unsigned short bone;
 	unsigned short unknown;
-	C3Vector position;
+	Vector3 position;
 };
 
 struct M2Event
@@ -206,7 +216,7 @@ struct M2Event
 	unsigned int identifier;
 	unsigned int data;
 	unsigned int bone;
-	C3Vector position;
+	Vector3 position;
 	M2TrackBase enabled;
 };
 
@@ -214,10 +224,10 @@ struct M2Light
 {
 	unsigned short type;
 	unsigned short bone;
-	C3Vector position;
-	M2Track<C3Vector> ambientColor;
+	Vector3 position;
+	M2Track<Vector3> ambientColor;
 	M2Track<float> ambientIntensity;
-	M2Track<C3Vector> diffuseColor;
+	M2Track<Vector3> diffuseColor;
 	M2Track<float> diffuseIntensity;
 	M2Track<float> attenuationStart;
 	M2Track<float> attenuationEnd;
@@ -230,10 +240,10 @@ struct M2Camera
 	float fov;
 	float farClip;
 	float nearClip;
-	M2Track<M2SplineKey<C3Vector>> positions;
-	C3Vector positionBase;
-	M2Track<M2SplineKey<C3Vector>> targetPosition;
-	C3Vector targetPositionBase;
+	M2Track<M2SplineKey<Vector3>> positions;
+	Vector3 positionBase;
+	M2Track<M2SplineKey<Vector3>> targetPosition;
+	Vector3 targetPositionBase;
 	M2Track<M2SplineKey<float>> roll;
 };
 
@@ -241,10 +251,10 @@ struct M2Ribbon
 {
 	unsigned int ribbonId;
 	unsigned int boneIndex;
-	C3Vector position;
+	Vector3 position;
 	M2Array<unsigned short> textureIndices;
 	M2Array<unsigned short> materialIndices;
-	M2Track<C3Vector> colorTrack;
+	M2Track<Vector3> colorTrack;
 	M2Track<unsigned short> alphaTrack;
 	M2Track<float> heightAboveTrack;
 	M2Track<float> heightBelowTrack;
@@ -261,7 +271,7 @@ struct M2Particle
 {
 	unsigned int particleId;
 	unsigned int flags;
-	C3Vector position;
+	Vector3 position;
 	unsigned short bone;
 	unsigned short texture;
 	M2Array<unsigned char> geometryModelFilename;
@@ -294,18 +304,18 @@ struct M2Particle
 	float tailLength;
 	float twinkleSpeed;
 	float twinklePercent;
-	C2Vector twinkleScale;
+	Vector2 twinkleScale;
 	float burstMultiplier;
 	float drag;
 	float spin;
 	M2Box tumble;
-	C3Vector windVector;
+	Vector3 windVector;
 	float windTime;
 	float followSpeed1;
 	float followScale1;
 	float followSpeed2;
 	float followScale2;
-	M2Array<C3Vector> splinePoints;
+	M2Array<Vector3> splinePoints;
 	M2Track<bool> enableInd;
 };
 
@@ -324,10 +334,10 @@ public:
 	unsigned short* getIndices(unsigned int view);
 
 	// Collision system.
-	unsigned int getNCollisionVertices();
-	C3Vector* getCollisionVertices();
-	unsigned int getNCollisionTriangles();
-	unsigned short* getCollisionTriangles();
+	unsigned int const getNCollisionVertices();
+	const Vector3* getCollisionVertices();
+	const unsigned int getNCollisionTriangles();
+	const unsigned short* getCollisionTriangles();
 
 private:
 	/** File version - MD20 chunk */
@@ -359,13 +369,13 @@ private:
 		M2Array<unsigned short> texUnitLookupTable;
 		M2Array<unsigned short> transparencyLookupTable;
 		M2Array<unsigned short> textureTransformsLookupTable;
-		CAaBox boundingBox;
+		AABox boundingBox;
 		float boundingSphereRadius;
-		CAaBox collisionBox;
+		AABox collisionBox;
 		float collisionSphereRadius;
 		M2Array<unsigned short> collisionTriangles;
-		M2Array<C3Vector> collisionVertices;
-		M2Array<C3Vector> collisionNormals;
+		M2Array<Vector3> collisionVertices;
+		M2Array<Vector3> collisionNormals;
 		M2Array<M2Attachment> attachments;
 		M2Array<unsigned short> attachmentLookupTable;
 		M2Array<M2Event> events;
@@ -379,3 +389,5 @@ private:
 	} * _header;
 	
 };
+
+#endif

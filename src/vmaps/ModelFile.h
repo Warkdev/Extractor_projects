@@ -27,9 +27,13 @@
 
 #include "Poco/Logger.h"
 #include "Poco/Util/LayeredConfiguration.h"
+#include "G3D/AABox.h"
+#include "G3D/Vector3.h"
 
 using Poco::Logger;
 using Poco::Util::LayeredConfiguration;
+using G3D::AABox;
+using G3D::Vector3;
 
 class ModelFile {
 public:
@@ -52,18 +56,7 @@ public:
 	struct VmapGroup {
 		unsigned int flags = 0;
 		unsigned int groupWMOID = 0;
-		struct {
-			struct {
-				float x = 0;
-				float y = 0;
-				float z = 0;
-			} min;
-			struct {
-				float x = 0;
-				float y = 0;
-				float z = 0;
-			} max;
-		} boundingBox;
+		AABox boundingBox;
 		unsigned int liquidFlags = 0;
 		struct {
 			const char magic[4] = { 'G', 'R', 'P', ' ' };
@@ -81,11 +74,7 @@ public:
 			const char magic[4] = { 'V', 'E', 'R', 'T' };
 			unsigned int size;			// sizeof(int) + (sizeof(float) * 3 * nVertices)
 			unsigned int nVertices = 0;		// nVertices. nVertices being (MOVT size / 12)
-			struct Vertex {
-				float x;
-				float y;
-				float z;
-			} * vertices = NULL;				// Dynamic size - nVertices.
+			Vector3* vertices = NULL;				// Dynamic size - nVertices.
 		} vertices;
 		struct {
 			const char magic[4] = { 'L', 'I', 'Q', 'U' };
@@ -94,11 +83,7 @@ public:
 			unsigned int yVerts = 0;
 			unsigned int xTiles = 0;
 			unsigned int yTiles = 0;
-			struct {
-				float x;
-				float y;
-				float z;
-			} baseCoords;
+			Vector3 baseCoords;
 			unsigned short type;
 			float * height = NULL;			// Dynamic size (xVerts * yVerts)
 			unsigned char * flags = NULL;	// Dynamic size (xTiles * yTiles)

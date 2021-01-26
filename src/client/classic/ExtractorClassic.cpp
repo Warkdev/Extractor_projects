@@ -26,50 +26,26 @@
 #include "Poco/Path.h"
 #include "Poco/File.h"
 #include "Poco/String.h"
-#include "Poco/MD5Engine.h"
-#include "Poco/DigestStream.h"
 #include "../mpq/WDT.h"
 
 using Poco::Path;
 using Poco::File;
-using Poco::MD5Engine;
-using Poco::DigestOutputStream;
-using Poco::DigestEngine;
 
-void ExtractorClassic::init(std::string clientPath)
+void ExtractorClassic::init()
 {
 	_logger.information("Initializing ExtractorClassic..");
-	Path client(clientPath);
     // This if the complete MPQ list but some of them have no interesting or recent data in them. Save time by not loading them.
 	//std::string mpqs[] = { "base.MPQ", "dbc.MPQ", "misc.MPQ", "model.MPQ", "speech.MPQ", "terrain.MPQ", "texture.MPQ", "wmo.MPQ", "patch.MPQ", "patch-2.MPQ" };
     std::string mpqs[] = { "dbc.MPQ", "model.MPQ", "terrain.MPQ", "wmo.MPQ", "patch.MPQ", "patch-2.MPQ" };
 	for (int i = 0; i < (sizeof(mpqs) / sizeof(mpqs[0])); i++)
 	{
-		Path path(client, mpqs[i]);
+		Path path(_clientDataPath, mpqs[i]);
 		_listMPQ.push_back(path.toString());
 	}
 	_version = Version::CLIENT_CLASSIC;
 }
 
-void ExtractorClassic::extract(std::string outputPath, bool exportMap, bool genVmaps)
-{
-
-    // For Classic, we only need Maps and AreaTable data.
-    readMaps();
-
-    if (exportMap)
-    {
-        readAreaTable();
-        exportMaps(outputPath);
-    }
-
-    if (genVmaps)
-    {
-        generateVmaps(outputPath);
-    }
-}
-
-void ExtractorClassic::generateVmaps(std::string outputPath)
+/**void ExtractorClassic::generateVmaps(std::string outputPath)
 {
     bool cacheToDisk = _config->getBool(PROP_VMAP_CACHE_TO_DISK);
     Path path(outputPath + PATH_MODELS);
@@ -89,27 +65,27 @@ void ExtractorClassic::generateVmaps(std::string outputPath)
     {
         file.remove(true);
     }
-}
+}*/
 
-void ExtractorClassic::exportMaps(std::string outputPath)
+void ExtractorClassic::exportMaps()
 {
-	_logger.information("Extracting Maps..");
-	Path path(outputPath + PATH_MAPS);
-	File file(path);
+    system("pause");
+    _logger.information("Extracting Maps..");
+	File file(_outputMapPath);
 	file.createDirectories();
 
 	char wdtFile[1024];
 	char adtFile[1024];
+    char wmoGroupFile[1024];
 
-    bool allowHeightLimit = _config->getBool(PROP_ALLOW_HEIGHT_LIMIT);
-    float useMinHeight = (float)_config->getDouble(PROP_USE_MIN_HEIGHT);
-    bool allowFloatToInt = _config->getBool(PROP_ALLOW_FLOAT_TO_INT);
-    float floatHeightDeltaTimit = (float)_config->getDouble(PROP_FLAT_HEIGHT_DELTA_LIMIT);
-    float floatLiquidDeltaTimit = (float)_config->getDouble(PROP_FLAT_LIQUID_DELTA_LIMIT);
-    float floatToByteLimit = (float)_config->getDouble(PROP_FLOAT_TO_BYTE_LIMIT);
-    float floatToShortLimit = (float)_config->getDouble(PROP_FLOAT_TO_SHORT_LIMIT);
+    readMaps();
+    readAreaTable();
+
     unsigned int maxAreaId = _areas.rbegin()->first;
+    Path tempPath;
     std::vector<std::string> temp;
+    std::string m2Name;
+    unsigned int idx; // used as temporary holder of the current idx.
 
 	for (auto it = _maps.begin(); it != _maps.end(); it++)
 	{
@@ -153,30 +129,88 @@ void ExtractorClassic::exportMaps(std::string outputPath)
 						continue;
 					}
 
-					MapFile map(it->first, x, y);
+                    if (_generateVmaps) {
+                        temp = adt->getModels();
+                        idx = 0;
+                        for (auto it = temp.begin(); it < temp.end(); it++)
+                        {
+                            m2Name = (*it).substr(0, (*it).find_last_of(".")) + ".m2";
+                            if (!_models.count(m2Name))
+                            {
+                                M2V1* m2 = (M2V1*)_mpqManager->getFile(m2Name, _version);
 
-					if (!convertADT(adt, &map, maxAreaId, allowHeightLimit, allowFloatToInt, floatHeightDeltaTimit, floatLiquidDeltaTimit, floatToByteLimit, floatToShortLimit, useMinHeight))
-					{
-						_logger.error("Error while generating the map file");
-						delete adt;
-						continue;
-					}
+                                if (!m2)
+                                {
+                                    _logger.error("Model file %s doesn't exist", m2Name);
+                                    continue;
+                                }
 
-                    temp = adt->getModels();
-                    for (auto it = temp.begin(); it < temp.end(); it++)
-                    {
-                        _models.push_back((*it).substr(0, (*it).find_last_of(".")) + ".m2");
+                                if (!m2->parse())
+                                {
+                                    _logger.error("Error while parsing the model %s", m2Name);
+                                    delete m2;
+                                    continue;
+                                }
+                                _models[m2Name] = new Model(m2);
+                            }
+                        }
+
+                        temp = adt->getWorldModels();
+                        for (auto it = temp.begin(); it < temp.end(); it++)
+                        {
+                            if (!_worldModels.count(*it))
+                            {
+                                WMOV1* wmo = (WMOV1*)_mpqManager->getFile(*it, _version);
+                                WMOGroupV1** groups;
+
+                                if (!wmo) 
+                                {
+                                    _logger.error("WMO file %s doesn't exist", *it);
+                                    continue;
+                                }
+
+                                if (!wmo->parse())
+                                {
+                                    _logger.error("Error while parsing the wmo %s", *it);
+                                    delete wmo;
+                                    continue;
+                                }
+
+                                groups = new WMOGroupV1*[wmo->getNGroups()];
+
+                                for (int i = 0; i < wmo->getNGroups(); i++) {
+                                    tempPath.assign(*it, Path::Style::PATH_WINDOWS); // Force path to interpret it with '\' as separator.
+                                    sprintf(wmoGroupFile, "%s%s_%03d.wmo", tempPath.parent().toString().c_str(), tempPath.getBaseName().c_str(), i);
+                                    WMOGroupV1* group = (WMOGroupV1*)_mpqManager->getFile(wmoGroupFile, _version);
+
+                                    if (!group)
+                                    {
+                                        _logger.warning("WMO Group file (%s) does not exist, warning can be safely ignored but no vmap info will be generated", std::string(wmoGroupFile));
+                                        continue;
+                                    }
+
+                                    if (!group->parse())
+                                    {
+                                        _logger.error("Error while parsing the WMO Group file %s", std::string(wmoGroupFile));
+                                        delete group;
+                                        continue;
+                                    }
+
+                                    groups[i] = group;
+                                }
+
+                                _worldModels[*it] = new Model(wmo, groups);
+                                delete groups;
+                            }
+                        }
                     }
 
-                    temp = adt->getWorldModels();
-                    _worldModels.insert(_worldModels.end(), temp.begin(), temp.end());
-
-					if (!map.save(path.toString()))
-					{
-						_logger.error("Error while saving the map file");
-						delete adt;
-						continue;
-					}
+                    if (!parseMap(adt, it->first, x, y, maxAreaId))
+                    {
+                        _logger.error("Error while generating the map file");
+                        delete adt;
+                        continue;
+                    }
 
 					delete adt;
 				}
@@ -187,21 +221,19 @@ void ExtractorClassic::exportMaps(std::string outputPath)
 
 		delete wdt;
 	}
-
-    // Sorting and removing duplicate models / worldobjects.
-    std::sort(_models.begin(), _models.end());
-    std::sort(_worldModels.begin(), _worldModels.end());
-    _models.erase(std::unique(_models.begin(), _models.end()), _models.end());
-    _worldModels.erase(std::unique(_worldModels.begin(), _worldModels.end()), _worldModels.end());
-    _logger.information("Total WMOs (refined): %z", _worldModels.size());
-    _logger.information("Total models (refined): %z", _models.size());
 }
 
-bool ExtractorClassic::convertADT(ADTV1* adt, MapFile* map, unsigned int maxAreaId, bool allowHeightLimit, bool allowFloatToInt, float floatHeightDeltaLimit, float floatLiquidDeltaLimit, float floatToByteLimit, float floatToShortLimit, float useMinHeight)
+bool ExtractorClassic::parseMap(ADTV1* adt, unsigned int mapId, unsigned int x, unsigned int y, unsigned int maxAreaId)
 {
-    map->mapHeightHeader.gridMaxHeight = -200000;
-    map->mapHeightHeader.gridHeight = 20000;
-    map->heightStep = 0.0f;
+    MapFile* map;
+    if (_exportMaps)
+    {
+        map = new MapFile(mapId, x, y);
+        map->mapHeightHeader.gridMaxHeight = -200000;
+        map->mapHeightHeader.gridHeight = 20000;
+        map->heightStep = 0.0f;
+    }
+     
  
     for (int i = 0; i < ADTV1::SIZE_TILE_MAP; i++)
     {
@@ -214,14 +246,32 @@ bool ExtractorClassic::convertADT(ADTV1* adt, MapFile* map, unsigned int maxArea
                 continue;
             }
 
-            handleAreas(map, cell, i, j, maxAreaId);
-            handleHeight(map, adt, cell, i, j, allowHeightLimit, useMinHeight);
-            handleLiquid(map, adt, cell, i, j);
-            handleHoles(map, cell, i, j);
+            if (_exportMaps)
+            {
+                handleAreas(map, cell, i, j, maxAreaId);
+                handleHeight(map, adt, cell, i, j);
+                handleLiquid(map, adt, cell, i, j);
+                handleHoles(map, cell, i, j);
+            }
+
+            if (_generateVmaps)
+            {
+
+            }
         }
     }
 
-    packData("z1.5", 5875, map, allowFloatToInt, floatHeightDeltaLimit, floatLiquidDeltaLimit, floatToByteLimit, floatToShortLimit, useMinHeight);
+    if (_exportMaps)
+    {
+        packData(map);
+
+        if (!map->save(_outputMapPath.toString()))
+        {
+            _logger.error("Error while saving the map file");
+        }
+
+        delete map;
+    }
 
     return true;
 }
@@ -242,7 +292,7 @@ void ExtractorClassic::handleAreas(MapFile* map, MCNK* cell, unsigned int i, uns
     }
 }
 
-void ExtractorClassic::handleHeight(MapFile* map, ADTV1* adt, MCNK* cell, unsigned int i, unsigned int j, bool allowHeightLimit, float useMinHeight)
+void ExtractorClassic::handleHeight(MapFile* map, ADTV1* adt, MCNK* cell, unsigned int i, unsigned int j)
 {
     // Get custom height
     MCVT* v = adt->getVertices(cell);
@@ -275,11 +325,11 @@ void ExtractorClassic::handleHeight(MapFile* map, ADTV1* adt, MCNK* cell, unsign
                 map->V8[cy][cx] = cell->position[2] + v->points[y * (ADTV1::CHUNK_TILE_MAP_LENGTH * 2 + 1) + ADTV1::CHUNK_TILE_MAP_LENGTH + 1 + x];
 
                 // Check for allow limit minimum height (not store height in deep ochean - allow save some memory)
-                if (allowHeightLimit)
+                if (_allowHeightLimit)
                 {
-                    if (map->V8[cy][cx] < useMinHeight)
+                    if (map->V8[cy][cx] < _useMinHeight)
                     {
-                        map->V8[cy][cx] = useMinHeight;
+                        map->V8[cy][cx] = _useMinHeight;
                     }
                 }
 
@@ -295,11 +345,11 @@ void ExtractorClassic::handleHeight(MapFile* map, ADTV1* adt, MCNK* cell, unsign
 
             map->V9[cy][cx] = cell->position[2] + v->points[y * (ADTV1::CHUNK_TILE_MAP_LENGTH * 2 + 1) + x];
 
-            if (allowHeightLimit)
+            if (_allowHeightLimit)
             {
-                if (map->V9[cy][cx] < useMinHeight)
+                if (map->V9[cy][cx] < _useMinHeight)
                 {
-                    map->V9[cy][cx] = useMinHeight;
+                    map->V9[cy][cx] = _useMinHeight;
                 }
             }
 
@@ -380,7 +430,7 @@ void ExtractorClassic::handleHoles(MapFile* map, MCNK* cell, unsigned int i, uns
 {
     map->holes[i][j] = cell->holes;
 }
-
+/**
 void ExtractorClassic::exportWMOs(std::string outputPath, bool cacheToDisk)
 {
     _logger.information("Extracting WMOs..");
@@ -394,8 +444,6 @@ void ExtractorClassic::exportWMOs(std::string outputPath, bool cacheToDisk)
     Path temp;
     std::string flatName;
     std::string hash;
-    MD5Engine engine;
-    DigestOutputStream ds(engine);
     char groupFile[1024];
     unsigned int count = 0;
     unsigned int total = (unsigned int)_worldModels.size();
@@ -403,10 +451,8 @@ void ExtractorClassic::exportWMOs(std::string outputPath, bool cacheToDisk)
     for (auto it = _worldModels.begin(); it < _worldModels.end(); ++it)
     {
         _logger.debug("Extracting wmo %s", *it);
-        temp.assign(*it, Path::Style::PATH_WINDOWS); // Force path to interpret it with '\' as separator.
-        ds << temp.parent().toString();
-        hash = DigestEngine::digestToHex(engine.digest());
-        ds.clear();
+        //temp.assign(*it, Path::Style::PATH_WINDOWS); // Force path to interpret it with '\' as separator.
+        hash = getUniformName(temp.parent().toString());
         WMOV1* wmo = (WMOV1*)_mpqManager->getFile(*it, _version);
 
         if (!wmo)
@@ -460,8 +506,6 @@ void ExtractorClassic::exportWMOs(std::string outputPath, bool cacheToDisk)
 
         delete wmo;
     }
-
-    ds.close();
 }
 
 bool ExtractorClassic::convertWMORoot(WMOV1* wmo, ModelFile* file)
@@ -485,12 +529,7 @@ bool ExtractorClassic::convertWMOGroup(WMOV1* root, WMOGroupV1* wmoGroup, ModelF
     // Source:: MOGP
     group->flags = info->flags;
     group->groupWMOID = info->wmoAreaTableRecId;
-    group->boundingBox.min.x = info->boundingBox.min.x;
-    group->boundingBox.min.y = info->boundingBox.min.y;
-    group->boundingBox.min.z = info->boundingBox.min.z;
-    group->boundingBox.max.x = info->boundingBox.max.x;
-    group->boundingBox.max.y = info->boundingBox.max.y;
-    group->boundingBox.max.z = info->boundingBox.max.z;
+    group->boundingBox.set(info->boundingBox.low(), info->boundingBox.high());
     group->liquidFlags = 0;
 
     // Source: MOBA
@@ -514,16 +553,16 @@ bool ExtractorClassic::convertWMOGroup(WMOV1* root, WMOGroupV1* wmoGroup, ModelF
         memcpy(group->indices.indices, vertexIndices->indexes, group->indices.nIndices * sizeof(unsigned short));
 
         // Source: MOVT
-        group->vertices.nVertices = vertexInfo->size / sizeof(MOVT::Vertex);
+        group->vertices.nVertices = vertexInfo->size / sizeof(Vector3);
         group->vertices.size = sizeof(unsigned int) + vertexInfo->size;
-        group->vertices.vertices = new ModelFile::VmapGroup::Vertices::Vertex[group->vertices.nVertices];
-        memcpy(group->vertices.vertices, vertexInfo->vertices, group->vertices.nVertices * sizeof(ModelFile::VmapGroup::Vertices::Vertex));
+        group->vertices.vertices = new Vector3[group->vertices.nVertices];
+        memcpy(group->vertices.vertices, vertexInfo->vertices, group->vertices.nVertices * sizeof(Vector3));
     }
     else {
         unsigned int nColTriangles = 0;
         unsigned int nColVertices = 0;
         unsigned int nVectors = polyInfo->size / sizeof(unsigned short);
-        unsigned int nVertices = vertexInfo->size / sizeof(MOVT::Vertex);
+        unsigned int nVertices = vertexInfo->size / sizeof(Vector3);
         unsigned short* moviEx = new unsigned short[nVectors * 3]; // Worst case, all triangles are collisions ones.
         int* newIndex = new int[nVertices];
         memset(newIndex, 0xFF, nVertices * sizeof(int));
@@ -567,8 +606,8 @@ bool ExtractorClassic::convertWMOGroup(WMOV1* root, WMOGroupV1* wmoGroup, ModelF
         }
 
         group->vertices.nVertices = nColVertices;
-        group->vertices.size = sizeof(unsigned int) + (sizeof(ModelFile::VmapGroup::Vertices::Vertex) * nColVertices);
-        group->vertices.vertices = new ModelFile::VmapGroup::Vertices::Vertex[group->vertices.nVertices];
+        group->vertices.size = sizeof(unsigned int) + (sizeof(Vector3) * nColVertices);
+        group->vertices.vertices = new Vector3[group->vertices.nVertices];
         int k = 0;
 
         for (int i = 0; i < nVertices; i++)
@@ -672,8 +711,6 @@ void ExtractorClassic::exportModels(std::string outputPath, bool cacheToDisk)
     Path temp;
     std::string flatName;
     std::string hash;
-    MD5Engine engine;
-    DigestOutputStream ds(engine);
     unsigned int count = 0;
     unsigned int total = (unsigned int)_models.size();
 
@@ -681,9 +718,7 @@ void ExtractorClassic::exportModels(std::string outputPath, bool cacheToDisk)
     {
         _logger.debug("Extracting model %s", *it);
         temp.assign(*it, Path::Style::PATH_WINDOWS); // Force path to interpret it with '\' as separator.
-        ds << temp.parent().toString();
-        hash = DigestEngine::digestToHex(engine.digest());
-        ds.clear();
+        hash = getUniformName(temp.parent().toString());
         M2V1* model = (M2V1*)_mpqManager->getFile(*it, _version);
 
         if (!model)
@@ -715,8 +750,6 @@ void ExtractorClassic::exportModels(std::string outputPath, bool cacheToDisk)
 
         delete model;
     }
-
-    ds.close();
 }
 
 bool ExtractorClassic::convertModel(M2V1* model, ModelFile* file)
@@ -731,12 +764,7 @@ bool ExtractorClassic::convertModel(M2V1* model, ModelFile* file)
     file->header.nVectors = model->getNCollisionVertices();
     group->flags = 0;
     group->groupWMOID = 0;
-    group->boundingBox.min.x = 0;
-    group->boundingBox.min.y = 0;
-    group->boundingBox.min.z = 0;
-    group->boundingBox.max.x = 0;
-    group->boundingBox.max.y = 0;
-    group->boundingBox.max.z = 0;
+    group->boundingBox.zero();
     group->liquidFlags = 0;
 
     // Header
@@ -749,8 +777,8 @@ bool ExtractorClassic::convertModel(M2V1* model, ModelFile* file)
 
     // Vertices
     group->vertices.nVertices = model->getNCollisionVertices();
-    group->vertices.size = sizeof(unsigned int) + (sizeof(ModelFile::VmapGroup::Vertices::Vertex) * group->vertices.nVertices);
-    group->vertices.vertices = new ModelFile::VmapGroup::Vertices::Vertex[group->vertices.nVertices];
+    group->vertices.size = sizeof(unsigned int) + (sizeof(Vector3) * group->vertices.nVertices);
+    group->vertices.vertices = new Vector3[group->vertices.nVertices];
     memcpy(group->vertices.vertices, model->getCollisionVertices(), group->vertices.nVertices);
 
     // Indices
@@ -770,4 +798,11 @@ bool ExtractorClassic::convertModel(M2V1* model, ModelFile* file)
     }
 
     return true;
+}
+*/
+ModelInstance* ExtractorClassic::spawnModel(Model* model, MDDF::DoodadDef* placement)
+{
+    
+
+    return NULL;
 }
