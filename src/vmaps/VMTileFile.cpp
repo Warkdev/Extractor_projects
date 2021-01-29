@@ -72,7 +72,8 @@ bool VMTileFile::save(std::string path)
             writer << _data.instances[i]->boundingBox.low().x << _data.instances[i]->boundingBox.low().y << _data.instances[i]->boundingBox.low().z;
             writer << _data.instances[i]->boundingBox.high().x << _data.instances[i]->boundingBox.high().y << _data.instances[i]->boundingBox.high().z;
         }
-        writer << _data.instances[i]->model->name;
+        writer << (unsigned int) _data.instances[i]->model->name.length();
+        writer.writeRaw(_data.instances[i]->model->name.c_str(), _data.instances[i]->model->name.length());
 
         // MapTree nodes to update when loading tile.
         writer << _data.instances[i]->nodeIdx;

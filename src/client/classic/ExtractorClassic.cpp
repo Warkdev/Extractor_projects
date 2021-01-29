@@ -600,7 +600,7 @@ void ExtractorClassic::spawnModelInstances(MPQFile* adt, MCNK* cell, unsigned in
             {
                 // Model found
                 m2 = it->second;
-                ModelInstance* instance = new ModelInstance(m2, placement->uniqueId, 0, _models.size(), x, y, placement->position, placement->orientation, placement->scale, AABox::zero());
+                ModelInstance* instance = new ModelInstance(m2, placement->uniqueId, 0, _modelInstances.size(), x, y, placement->position, placement->orientation, placement->scale, AABox::zero());
                 _modelInstances[instance->id] = instance;
                 _modelTileInstances[instance->id] = instance;
             }
@@ -629,7 +629,7 @@ void ExtractorClassic::spawnWorldModelInstances(MPQFile* adt, MCNK* cell, unsign
             {
                 // Model found
                 wmo = it->second;
-                ModelInstance* instance = new ModelInstance(wmo, placement->uniqueId, placement->flags, _models.size(), x, y, placement->position, placement->orientation, 1.0f, placement->boundingBox);
+                ModelInstance* instance = new ModelInstance(wmo, placement->uniqueId, placement->flags, _modelInstances.size(), x, y, placement->position, placement->orientation, 1.0f, placement->boundingBox);
                 _modelInstances[instance->id] = instance;
                 _modelTileInstances[instance->id] = instance;
             }
