@@ -45,7 +45,7 @@ VMTileFile::~VMTileFile()
 bool VMTileFile::save(std::string path)
 {
     char vmTileFile[1024];
-    sprintf(vmTileFile, PATTERN_FILE.c_str(), _mapId, _tileX, _tileY);
+    sprintf(vmTileFile, PATTERN_FILE.c_str(), _mapId, _tileY, _tileX); // Tile indices are reversed.
     Path filePath(path + "/" + vmTileFile);
     File file(filePath);
     file.createFile();
