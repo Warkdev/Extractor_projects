@@ -88,7 +88,6 @@ class Extractor
 			_flatLiquidDeltaLimit = (float)config->getDouble(PROP_FLAT_LIQUID_DELTA_LIMIT);
 			_floatToByteLimit = (float)config->getDouble(PROP_FLOAT_TO_BYTE_LIMIT);
 			_floatToShortLimit = (float)config->getDouble(PROP_FLOAT_TO_SHORT_LIMIT);
-			_cacheToDisk = config->getBool(PROP_VMAP_CACHE_TO_DISK);
 			_preciseVectorData = config->getBool(PROP_VMAP_WMO_PRECISE_VECTOR_DATA);
 		}
 
@@ -186,9 +185,7 @@ class Extractor
 		unsigned int _buildVersion;
 
 		// Vmap Generator Configuration keys.
-		const std::string PROP_VMAP_CACHE_TO_DISK = "vmap.cache.disk";
 		const std::string PROP_VMAP_WMO_PRECISE_VECTOR_DATA = "vmap.wmo.preciseVectorData";
-		bool _cacheToDisk;
 		bool _preciseVectorData;
 		const std::string PATH_VMAPS = "/vmaps";
 		Path _outputVmapPath;
