@@ -45,47 +45,37 @@ void ExtractorClassic::init()
 	_version = Version::CLIENT_CLASSIC;
 }
 
-/**void ExtractorClassic::generateVmaps(std::string outputPath)
+void ExtractorClassic::createDirectories()
 {
-    bool cacheToDisk = _config->getBool(PROP_VMAP_CACHE_TO_DISK);
-    Path path(outputPath + PATH_MODELS);
-    File file(path);
-
-    if (cacheToDisk)
-    {
+    if (_exportMaps) {
+        File file(_outputMapPath);
         file.createDirectories();
     }
 
-    exportWMOs(path.toString(), cacheToDisk);
-    exportModels(path.toString(), cacheToDisk);
-
-    _logger.information("Extraction complete");
-
-    if (cacheToDisk)
-    {
-        file.remove(true);
+    if (_generateVmaps) {
+        File file(_outputVmapPath);
+        file.createDirectories();
     }
-}*/
+
+    if (_generateMmaps) {
+        File file(_outputMmapPath);
+        file.createDirectories();
+    }
+}
 
 void ExtractorClassic::exportMaps()
 {
     system("pause");
     _logger.information("Extracting Maps..");
-	File file(_outputMapPath);
-	file.createDirectories();
+    createDirectories();
 
 	char wdtFile[1024];
 	char adtFile[1024];
-    char wmoGroupFile[1024];
 
     readMaps();
     readAreaTable();
 
     unsigned int maxAreaId = _areas.rbegin()->first;
-    Path tempPath;
-    std::vector<std::string> temp;
-    std::string m2Name;
-    unsigned int idx; // used as temporary holder of the current idx.
 
 	for (auto it = _maps.begin(); it != _maps.end(); it++)
 	{
@@ -105,6 +95,11 @@ void ExtractorClassic::exportMaps()
 			continue;
 		}
 		
+        if (_generateVmaps)
+        {
+            spawnVMap(it->first, wdt);
+        }
+
 		for (int x = 0; x < WDT::MAP_TILE_SIZE; x++)
 		{
 			for (int y = 0; y < WDT::MAP_TILE_SIZE; y++)
@@ -129,80 +124,13 @@ void ExtractorClassic::exportMaps()
 						continue;
 					}
 
-                    if (_generateVmaps) {
-                        temp = adt->getModels();
-                        idx = 0;
-                        for (auto it = temp.begin(); it < temp.end(); it++)
-                        {
-                            m2Name = (*it).substr(0, (*it).find_last_of(".")) + ".m2";
-                            if (!_models.count(m2Name))
-                            {
-                                M2V1* m2 = (M2V1*)_mpqManager->getFile(m2Name, _version);
+                    if (_generateVmaps) 
+                    {
+                        // We read the models defined in the ADT. Chunk MDDX and load them as Model with their graphical data.
+                        readModels(adt);
 
-                                if (!m2)
-                                {
-                                    _logger.error("Model file %s doesn't exist", m2Name);
-                                    continue;
-                                }
-
-                                if (!m2->parse())
-                                {
-                                    _logger.error("Error while parsing the model %s", m2Name);
-                                    delete m2;
-                                    continue;
-                                }
-                                _models[m2Name] = new Model(m2);
-                            }
-                        }
-
-                        temp = adt->getWorldModels();
-                        for (auto it = temp.begin(); it < temp.end(); it++)
-                        {
-                            if (!_worldModels.count(*it))
-                            {
-                                WMOV1* wmo = (WMOV1*)_mpqManager->getFile(*it, _version);
-                                WMOGroupV1** groups;
-
-                                if (!wmo) 
-                                {
-                                    _logger.error("WMO file %s doesn't exist", *it);
-                                    continue;
-                                }
-
-                                if (!wmo->parse())
-                                {
-                                    _logger.error("Error while parsing the wmo %s", *it);
-                                    delete wmo;
-                                    continue;
-                                }
-
-                                groups = new WMOGroupV1*[wmo->getNGroups()];
-
-                                for (int i = 0; i < wmo->getNGroups(); i++) {
-                                    tempPath.assign(*it, Path::Style::PATH_WINDOWS); // Force path to interpret it with '\' as separator.
-                                    sprintf(wmoGroupFile, "%s%s_%03d.wmo", tempPath.parent().toString().c_str(), tempPath.getBaseName().c_str(), i);
-                                    WMOGroupV1* group = (WMOGroupV1*)_mpqManager->getFile(wmoGroupFile, _version);
-
-                                    if (!group)
-                                    {
-                                        _logger.warning("WMO Group file (%s) does not exist, warning can be safely ignored but no vmap info will be generated", std::string(wmoGroupFile));
-                                        continue;
-                                    }
-
-                                    if (!group->parse())
-                                    {
-                                        _logger.error("Error while parsing the WMO Group file %s", std::string(wmoGroupFile));
-                                        delete group;
-                                        continue;
-                                    }
-
-                                    groups[i] = group;
-                                }
-
-                                _worldModels[*it] = new Model(wmo, groups);
-                                delete groups;
-                            }
-                        }
+                        // Same for WMO's.
+                        readWorldModels(adt);
                     }
 
                     if (!parseMap(adt, it->first, x, y, maxAreaId))
@@ -212,15 +140,26 @@ void ExtractorClassic::exportMaps()
                         continue;
                     }
 
+                    if (_generateVmaps && _modelTileInstances.size() > 0)
+                    {
+                        saveVMapTile(it->first, x , y);
+                    }
+
 					delete adt;
 				}
                 // We use printf here because there's no known way to do it with Poco.
-                printf(" Processing........................%d%%\r", (100 * (x + 1)) / WDT::MAP_TILE_SIZE);
+                printf(" Processing tile X: %u, Y: %u........................%d%%\r", x, y, (100 * (x + 1)) / WDT::MAP_TILE_SIZE);
 			}
 		}
 
+        if (_generateVmaps)
+        {
+            saveVMap(it->first);
+        }
+
 		delete wdt;
 	}
+    _logger.debug("Debug line");
 }
 
 bool ExtractorClassic::parseMap(ADTV1* adt, unsigned int mapId, unsigned int x, unsigned int y, unsigned int maxAreaId)
@@ -233,7 +172,6 @@ bool ExtractorClassic::parseMap(ADTV1* adt, unsigned int mapId, unsigned int x, 
         map->mapHeightHeader.gridHeight = 20000;
         map->heightStep = 0.0f;
     }
-     
  
     for (int i = 0; i < ADTV1::SIZE_TILE_MAP; i++)
     {
@@ -256,7 +194,10 @@ bool ExtractorClassic::parseMap(ADTV1* adt, unsigned int mapId, unsigned int x, 
 
             if (_generateVmaps)
             {
-
+                // We spawn models and calculate their position.
+                spawnModelInstances(adt, cell, x, y);
+                // .. also for World Models.
+                spawnWorldModelInstances(adt, cell, x, y);
             }
         }
     }
@@ -805,4 +746,223 @@ ModelInstance* ExtractorClassic::spawnModel(Model* model, MDDF::DoodadDef* place
     
 
     return NULL;
+}
+
+void ExtractorClassic::spawnVMap(unsigned int mapId, MPQFile* wdt)
+{
+    Path tempPath;
+    _logger.information("VMAP - Spawning map %u", mapId);
+    char wmoGroupFile[1024];
+
+    // We read first global WMO's.
+    if (((WDT*)wdt)->hasGlobalWMO())
+    {
+        std::string wmoName = ((WDT*)wdt)->getGlobalWMOName();
+        _logger.debug("Global WMO: %s", wmoName);
+
+        WMOV1* wmo = (WMOV1*)_mpqManager->getFile(wmoName, _version);
+        WMOGroupV1** groups;
+
+        if (!wmo)
+        {
+            _logger.error("WMO file %s doesn't exist", wmoName);
+            return;
+        }
+
+        if (!wmo->parse())
+        {
+            _logger.error("Error while parsing the wmo %s", wmoName);
+            delete wmo;
+            return;
+        }
+
+        groups = new WMOGroupV1 * [wmo->getNGroups()];
+
+        for (int i = 0; i < wmo->getNGroups(); i++) {
+            tempPath.assign(wmoName, Path::Style::PATH_WINDOWS); // Force path to interpret it with '\' as separator.
+            sprintf(wmoGroupFile, "%s%s_%03d.wmo", tempPath.parent().toString().c_str(), tempPath.getBaseName().c_str(), i);
+            WMOGroupV1* group = (WMOGroupV1*)_mpqManager->getFile(wmoGroupFile, _version);
+
+            if (!group)
+            {
+                _logger.warning("WMO Group file (%s) does not exist, warning can be safely ignored but no vmap info will be generated", std::string(wmoGroupFile));
+                continue;
+            }
+
+            if (!group->parse())
+            {
+                _logger.error("Error while parsing the WMO Group file %s", std::string(wmoGroupFile));
+                delete group;
+                continue;
+            }
+
+            groups[i] = group;
+        }
+
+        _worldModels[wmoName] = new Model(getUniformName(tempPath.parent().toString()) + '-' + tempPath.getFileName(), wmo, groups, _preciseVectorData);
+        _worldModels[wmoName]->flags |= MOD_WORLDSPAWN;
+
+        MODF::MapObjDef* placement = &((WDT*)wdt)->getGlobalWMOPlacement()->placements[0];
+
+        ModelInstance* instance = new ModelInstance(_worldModels[wmoName], placement->uniqueId, placement->flags, 0, 0, 0, placement->position, placement->orientation, 1.0f, placement->boundingBox);
+        _worldModel = instance;
+        saveVMapModels(_worldModels[wmoName]);
+
+        delete[] groups;
+    }
+    else 
+    {
+        _worldModel = NULL;
+    }
+}
+
+void ExtractorClassic::readModels(MPQFile* adt)
+{
+    Path tempPath;
+    std::string m2Name;
+    _modelsList = ((ADTV1*) adt)->getModels();
+    unsigned int idx = 0;
+    for (auto it = _modelsList.begin(); it < _modelsList.end(); it++)
+    {
+        m2Name = (*it).substr(0, (*it).find_last_of(".")) + ".m2";
+        if (!_models.count(m2Name))
+        {
+            M2V1* m2 = (M2V1*)_mpqManager->getFile(m2Name, _version);
+            tempPath.assign(m2Name, Path::Style::PATH_WINDOWS); // Force path to interpret it with '\' as separator.
+
+            if (!m2)
+            {
+                _logger.error("Model file %s doesn't exist", m2Name);
+                continue;
+            }
+
+            if (!m2->parse())
+            {
+                _logger.error("Error while parsing the model %s", m2Name);
+                delete m2;
+                continue;
+            }
+            if (!m2->getNCollisionVertices())
+            {
+                _logger.debug("Model has no collision vertices, skipping %s", m2Name);
+                delete m2;
+                continue;
+            }
+            _models[*it] = new Model(getUniformName(tempPath.parent().toString()) + '-' + tempPath.getFileName(), m2);
+            saveVMapModels(_models[*it]);
+        }
+    }
+}
+
+void ExtractorClassic::readWorldModels(MPQFile* adt)
+{
+    Path tempPath;
+    char wmoGroupFile[1024];
+    _worldModelsList = ((ADTV1*) adt)->getWorldModels();
+    for (auto itWMO = _worldModelsList.begin(); itWMO < _worldModelsList.end(); itWMO++)
+    {
+        if (!_worldModels.count(*itWMO))
+        {
+            WMOV1* wmo = (WMOV1*)_mpqManager->getFile(*itWMO, _version);
+            WMOGroupV1** groups;
+
+            if (!wmo)
+            {
+                _logger.error("WMO file %s doesn't exist", *itWMO);
+                continue;
+            }
+
+            if (!wmo->parse())
+            {
+                _logger.error("Error while parsing the wmo %s", *itWMO);
+                delete wmo;
+                continue;
+            }
+
+            groups = new WMOGroupV1 * [wmo->getNGroups()];
+
+            for (int i = 0; i < wmo->getNGroups(); i++) {
+                tempPath.assign(*itWMO, Path::Style::PATH_WINDOWS); // Force path to interpret it with '\' as separator.
+                sprintf(wmoGroupFile, "%s%s_%03d.wmo", tempPath.parent().toString().c_str(), tempPath.getBaseName().c_str(), i);
+                WMOGroupV1* group = (WMOGroupV1*)_mpqManager->getFile(wmoGroupFile, _version);
+
+                if (!group)
+                {
+                    _logger.warning("WMO Group file (%s) does not exist, warning can be safely ignored but no vmap info will be generated", std::string(wmoGroupFile));
+                    continue;
+                }
+
+                if (!group->parse())
+                {
+                    _logger.error("Error while parsing the WMO Group file %s", std::string(wmoGroupFile));
+                    delete group;
+                    continue;
+                }
+
+                groups[i] = group;
+            }
+
+            _worldModels[*itWMO] = new Model(getUniformName(tempPath.parent().toString()) + '-' + tempPath.getFileName(), wmo, groups, _preciseVectorData);
+            saveVMapModels(_worldModels[*itWMO]);
+            delete[] groups;
+        }
+    }
+}
+
+void ExtractorClassic::spawnModelInstances(MPQFile* adt, MCNK* cell, unsigned int x, unsigned int y)
+{
+    MCRF* references = ((ADTV1*) adt)->getModelReferences(cell);
+    if (cell->nDoodadRefs)
+    {
+        // Here, we get each instances of previously loaded models.
+        unsigned int* modelsOffsets = (unsigned int*)((unsigned char*)references + sizeof(MCRF::magic) + sizeof(MCRF::size));
+        MDDF* modelPlacement = ((ADTV1*)adt)->getModelsPlacement();
+        for (int k = 0; k < cell->nDoodadRefs; k++)
+        {
+            MDDF::DoodadDef* placement = &modelPlacement->placements[modelsOffsets[k]];
+            Model* m2;
+            Path tempPath(_modelsList[placement->mmidEntry], Path::Style::PATH_WINDOWS);
+            auto it = _models.find(_modelsList[placement->mmidEntry]);
+            if (it != _models.end())
+            {
+                // Model found
+                m2 = it->second;
+                ModelInstance* instance = new ModelInstance(m2, placement->uniqueId, 0, _models.size(), x, y, placement->position, placement->orientation, placement->scale, AABox::zero());
+                _modelInstances[instance->id] = instance;
+                _modelTileInstances[instance->id] = instance;
+            }
+            else {
+                // Can be a model without collision vertices.
+                _logger.debug("Model not found %s", _modelsList[placement->mmidEntry]);
+            }
+        }
+    }
+}
+
+void ExtractorClassic::spawnWorldModelInstances(MPQFile* adt, MCNK* cell, unsigned int x, unsigned int y)
+{
+    MCRF* references = ((ADTV1*)adt)->getModelReferences(cell);
+    if (cell->nMapObjRefs)
+    {
+        unsigned int* wmoOffsets = (unsigned int*)((unsigned char*)references + sizeof(MCRF::magic) + sizeof(MCRF::size) + (cell->nDoodadRefs * sizeof(unsigned int)));
+        MODF* wmoPlacement = ((ADTV1*) adt)->getWorldModelsPlacement();
+        for (int k = 0; k < cell->nMapObjRefs; k++)
+        {
+            MODF::MapObjDef* placement = &wmoPlacement->placements[wmoOffsets[k]];
+            Model* wmo;
+            Path tempPath(_worldModelsList[placement->mwidEntry], Path::Style::PATH_WINDOWS);
+            auto it = _worldModels.find(_worldModelsList[placement->mwidEntry]);
+            if (it != _worldModels.end())
+            {
+                // Model found
+                wmo = it->second;
+                ModelInstance* instance = new ModelInstance(wmo, placement->uniqueId, placement->flags, _models.size(), x, y, placement->position, placement->orientation, 1.0f, placement->boundingBox);
+                _modelInstances[instance->id] = instance;
+                _modelTileInstances[instance->id] = instance;
+            }
+            else {
+                _logger.warning("WMO not found %s", _worldModelsList[placement->mwidEntry]);
+            }
+        }
+    }
 }

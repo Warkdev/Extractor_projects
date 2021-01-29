@@ -27,6 +27,7 @@
 #include "MPQFile.h"
 #include "G3D/AABox.h"
 #include "G3D/Vector3.h"
+#include "ADTV1.h"
 
 using Poco::Logger;
 using G3D::AABox;
@@ -42,6 +43,9 @@ class WDT : public MPQFile
 		~WDT();
 		bool parse();
 		bool hasADT(int x, int y);
+		bool hasGlobalWMO();
+		std::string getGlobalWMOName();
+		MODF* getGlobalWMOPlacement();
 		
 	private:
 		enum WDTHeaderFlags {
@@ -90,22 +94,9 @@ class WDT : public MPQFile
 		struct MWMO {
 			char magic[4];
 			unsigned int size;
+			std::string name;
 		} * _wmo;
 		/** WDT WMO Placement - FDOM chunk */
 		const std::string HEADER_MODF = "FDOM";
-		struct MODF {
-			char magic[4];
-			unsigned int size;
-			struct {
-				unsigned int mwidEntry;
-				unsigned int uniqueId;
-				Vector3 position;
-				Vector3 orientation[3];
-				AABox extents;
-				unsigned short flags;
-				unsigned short doodadSet;
-				unsigned short nameSet;
-				unsigned short padding;
-			} placement;
-		} * _objDef;
+		MODF* _objDef;
 };

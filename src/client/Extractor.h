@@ -25,12 +25,16 @@
 #define EXTRACTOR_H
 
 #include <string>
+#include <set>
 #include "Poco/Logger.h"
 #include "Poco/Util/LayeredConfiguration.h"
 #include "MPQManager.h"
 #include "../maps/MapFile.h"
 #include "../vmaps/ModelFile.h"
 #include "../vmaps/Model.h"
+#include "../vmaps/VMTreeFile.h"
+#include "../vmaps/VMTileFile.h"
+#include "../vmaps/VMOFile.h"
 
 using Poco::Logger;
 using Poco::Util::LayeredConfiguration;
@@ -54,6 +58,11 @@ static const std::string MAP_FILE_VERSION_LEGION = "l1.5";
 
 // Client build numbers
 static const unsigned int CLIENT_BUILD_CLASSIC = 5875;
+
+template<> struct BoundsTrait<ModelInstance*>
+{
+	static void getBounds(const ModelInstance* const& model, AABox& out) { out = model->boundingBox; }
+};
 
 class Extractor 
 {
@@ -97,11 +106,11 @@ class Extractor
 			}
 			for (auto it = _modelInstances.begin(); it != _modelInstances.end(); it++)
 			{
-				delete *it;
+				delete it->second;
 			}
-			for (auto it = _worldModelInstances.begin(); it != _worldModelInstances.end(); it++)
+			for (auto it = _modelTileInstances.begin(); it != _modelTileInstances.end(); it++)
 			{
-				delete* it;
+				delete it->second;
 			}
 		}
 
@@ -110,20 +119,32 @@ class Extractor
 		void exportDBC();
 		virtual void exportMaps() = 0;
 	protected:
+		virtual void createDirectories() = 0;
+
 		void readMaps();
 		void readAreaTable();
 		void readLiquidType();
 
-		//virtual void exportWMOs(std::string outputPath, bool cacheToDisk) = 0;
-		//virtual void exportModels(std::string outputPath, bool cacheToDisk) = 0;
-		//virtual void readModelsFromMaps() = 0;
+		// Tools function
 		std::string getUniformName(std::string filename);
+		unsigned int packTileId(unsigned int x, unsigned int y);
 
+		// Map Functions
 		void packAreaData(MapFile* map);
 		void packHeight(MapFile* map);
 		void packLiquid(MapFile* map);
 		void packHoles(MapFile* map);
 		void packData(MapFile* map);
+
+		// VMap Functions
+		virtual void spawnVMap(unsigned int mapId, MPQFile* wdt) = 0;
+		virtual void readModels(MPQFile* adt) = 0;
+		virtual void readWorldModels(MPQFile* adt) = 0;
+		virtual void spawnModelInstances(MPQFile* adt, MCNK* cell, unsigned int x, unsigned int y) = 0;
+		virtual void spawnWorldModelInstances(MPQFile* adt, MCNK* cell, unsigned int x, unsigned int y) = 0;
+		virtual void saveVMap(unsigned int mapId);
+		virtual void saveVMapTile(unsigned int mapId, unsigned int x, unsigned int y);
+		virtual void saveVMapModels(Model* model);
 
 		// Extractor flags.
 		bool _extractDbcs;
@@ -189,10 +210,13 @@ class Extractor
 		std::map<unsigned int, unsigned int> _liquids;
 
 		// VMaps data
-		std::map<std::string, Model*> _models;
-		std::map<std::string, Model*> _worldModels;
-		std::vector<ModelInstance*> _modelInstances;
-		std::vector<ModelInstance*> _worldModelInstances;
+		std::map<std::string, Model*> _models; // Hold the models info for the current WDT.
+		std::map<std::string, Model*> _worldModels; // Hold the world models info for the current WDT.
+		ModelInstance* _worldModel; // Hold a global world model for the current WDT.
+		std::vector<std::string> _modelsList; // Hold the list of models for the current ADT.
+		std::vector<std::string> _worldModelsList; // Hold the list of world models for the current ADT.
+		std::map<unsigned int, ModelInstance*> _modelInstances; // Hold the list of spawned models for the current ADT.
+		std::map<unsigned int, ModelInstance*> _modelTileInstances; // Hold the list of spawned models for the current Tile.
 };
 
 #endif // !EXTRACTOR_H

@@ -132,6 +132,7 @@ struct MDDF {
 	unsigned int size;
 	struct DoodadDef {
 		unsigned int mmidEntry;
+		unsigned int uniqueId;
 		Vector3 position;
 		Vector3 orientation;
 		unsigned short scale;

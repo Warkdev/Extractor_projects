@@ -94,7 +94,7 @@ bool WDT::parse()
 		return false;
 	}
 
-	if (_header->flags & USE_GLOBAL_MAP_OBJ)
+	if (hasGlobalWMO())
 	{
 		offset += 8 + _wmo->size;
 		_objDef = (MODF*)(_data + offset);
@@ -112,4 +112,24 @@ bool WDT::parse()
 bool WDT::hasADT(int x, int y)
 {
 	return _main->areaInfo[x][y].flags & HAS_ADT;
+}
+
+bool WDT::hasGlobalWMO()
+{
+	return _header->flags & USE_GLOBAL_MAP_OBJ;
+}
+
+std::string WDT::getGlobalWMOName()
+{
+	return readStringChunk((unsigned char*) _wmo)[0];
+}
+
+MODF* WDT::getGlobalWMOPlacement()
+{
+	if (hasGlobalWMO())
+	{
+		return _objDef;
+	}
+
+	return NULL;
 }

@@ -22,32 +22,54 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-#ifndef VMTILEFILE_H
-#define VMTILEILE_H
+#ifndef VMOFILE_H
+#define VMOFILE_H
 
 #include "Poco/Logger.h"
 #include "Model.h"
 
 using Poco::Logger;
 
-class VMTileFile {
+class VMOFile {
 public:
-	VMTileFile(unsigned int mapId, unsigned int tileX, unsigned int tileY, std::vector<ModelInstance*> instances);
-	~VMTileFile();
+	VMOFile(Model* model);
+	~VMOFile();
 
 	bool save(std::string path);
 
 private:
-	const std::string PATTERN_FILE = "%03u_%02u_%02u.vmtile";
+	const std::string PATTERN_FILE = "%s.vmo";
 	Logger& _logger = Logger::get("Extractor");
 
-	const unsigned int _mapId;
-	const unsigned int _tileX;
-	const unsigned int _tileY;
+	Model* _model;
 	struct {
 		const char magic[8] = { 'V', 'M', 'A', 'P', '_', '4', '.', '0' };
-		std::vector<ModelInstance*> instances;
-	} _data;
+	} _header;
+	struct {
+		const char magic[4] = { 'W', 'M', 'O', 'D' };
+	} _root;
+	struct {
+		struct {
+			const char magic[4] = { 'G', 'M', 'O', 'D' };
+		} header;
+		struct {
+			const char magic[4] = { 'V', 'E', 'R', 'T' };
+		} vertex;
+		struct {
+			const char magic[4] = { 'T', 'R', 'I', 'M' };
+		} mesh;
+		struct {
+			const char magic[4] = { 'M', 'B', 'I', 'H' };
+		} bih;
+		struct {
+			const char magic[4] = { 'L', 'I', 'Q', 'U' };
+		} liquid;
+	} _group;
+	struct {
+		struct {
+			const char magic[4] = { 'G', 'B', 'I', 'H' };
+		} bih;
+	} _bih;
 };
 
 #endif

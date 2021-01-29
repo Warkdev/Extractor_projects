@@ -43,6 +43,12 @@ class ExtractorClassic : public Extractor
 	protected:
 		// Inherited
 		virtual void exportMaps();
+		virtual void createDirectories();
+		virtual void spawnVMap(unsigned int mapId, MPQFile* wdt);
+		virtual void readModels(MPQFile* adt);
+		virtual void readWorldModels(MPQFile* adt);
+		virtual void spawnModelInstances(MPQFile* adt, MCNK* cell, unsigned int x, unsigned int y);
+		virtual void spawnWorldModelInstances(MPQFile* adt, MCNK* cell, unsigned int x, unsigned int y);
 		//virtual void generateVmaps(std::string outputPath);
 		//virtual void exportWMOs(std::string outputPath, bool cacheToDisk);
 		//virtual void exportModels(std::string outputPath, bool cacheToDisk);

@@ -403,10 +403,71 @@ std::string Extractor::getUniformName(std::string filename)
     DigestOutputStream ds(engine);
     std::string hash;
 
-    ds << filename;
+    engine.update(filename.c_str());
     hash = DigestEngine::digestToHex(engine.digest());
     ds.clear();
     ds.close();
 
     return hash;
+}
+
+unsigned int Extractor::packTileId(unsigned int x, unsigned int y)
+{
+    return (x << 16) + y;
+}
+
+void Extractor::saveVMap(unsigned int mapId)
+{
+    _logger.information("VMAP - Creating map tree %u", mapId);
+    std::vector<ModelInstance*> models;
+    // First, we make a vector of all unique model instances for this map.
+    for (auto itModels : _modelInstances)
+    {
+        models.push_back(itModels.second);
+    }
+
+    BIH tree;
+    tree.build(models, BoundsTrait<ModelInstance*>::getBounds);
+    VMTreeFile vmTreeFile(mapId, &tree, _worldModel);
+    vmTreeFile.save(_outputVmapPath.toString());
+
+    models.clear();
+    for (auto p : _modelInstances)
+    {
+        delete p.second;
+    }
+    _modelInstances.clear();
+    for (auto p : _models)
+    {
+        delete p.second;
+    }
+    _models.clear();
+    for (auto p : _worldModels)
+    {
+        delete p.second;
+    }
+    _worldModels.clear();
+}
+
+void Extractor::saveVMapTile(unsigned int mapId, unsigned int x, unsigned int y)
+{
+    _logger.debug("VMAP - Creating map %u tile x: %u - y: %u", mapId, x, y);
+    std::vector<ModelInstance*> models;
+    for (auto itModels : _modelTileInstances)
+    {
+        models.push_back(itModels.second);
+    }
+
+    VMTileFile vmTileFile(mapId, x, y, models);
+    vmTileFile.save(_outputVmapPath.toString());
+    models.clear();
+    // We just empty without cleaning the pointers because it's used by the _modelInstances vector as well..
+    _modelTileInstances.clear();
+}
+
+void Extractor::saveVMapModels(Model* model)
+{
+    _logger.debug("VMAP - Saving Model file %s", model->name);
+    VMOFile file(model);
+    file.save(_outputVmapPath.toString());
 }

@@ -22,32 +22,14 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-#ifndef VMTILEFILE_H
-#define VMTILEILE_H
+#ifndef MAPUNIT_H
+#define MAPUNIT_H
 
-#include "Poco/Logger.h"
-#include "Model.h"
-
-using Poco::Logger;
-
-class VMTileFile {
-public:
-	VMTileFile(unsigned int mapId, unsigned int tileX, unsigned int tileY, std::vector<ModelInstance*> instances);
-	~VMTileFile();
-
-	bool save(std::string path);
-
-private:
-	const std::string PATTERN_FILE = "%03u_%02u_%02u.vmtile";
-	Logger& _logger = Logger::get("Extractor");
-
-	const unsigned int _mapId;
-	const unsigned int _tileX;
-	const unsigned int _tileY;
-	struct {
-		const char magic[8] = { 'V', 'M', 'A', 'P', '_', '4', '.', '0' };
-		std::vector<ModelInstance*> instances;
-	} _data;
-};
+// Map Units
+static const float MAP_SIZE = 533.33333f;
+static const float TILE_SIZE = MAP_SIZE + 1 / 3.0f;
+static const float CHUNK_SIZE = TILE_SIZE / 16.0f;
+static const float UNIT_SIZE = CHUNK_SIZE / 8.0f;
+static const float ZERO_POINT = 32.0f * TILE_SIZE;
 
 #endif

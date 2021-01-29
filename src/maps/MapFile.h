@@ -26,11 +26,9 @@
 #define MAPFILE_H
 
 #include "Poco/Logger.h"
-#include "Poco/Util/LayeredConfiguration.h"
 #include "../client/mpq/ADTV1.h"
 
 using Poco::Logger;
-using Poco::Util::LayeredConfiguration;
 
 class MapFile {
 	public:
