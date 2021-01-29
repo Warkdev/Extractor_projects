@@ -49,9 +49,6 @@ class ExtractorClassic : public Extractor
 		virtual void readWorldModels(MPQFile* adt);
 		virtual void spawnModelInstances(MPQFile* adt, MCNK* cell, unsigned int x, unsigned int y);
 		virtual void spawnWorldModelInstances(MPQFile* adt, MCNK* cell, unsigned int x, unsigned int y);
-		//virtual void generateVmaps(std::string outputPath);
-		//virtual void exportWMOs(std::string outputPath, bool cacheToDisk);
-		//virtual void exportModels(std::string outputPath, bool cacheToDisk);
 
 		bool parseMap(ADTV1* adt, unsigned int mapId, unsigned int x, unsigned int y, unsigned int maxAreaId);
 
@@ -60,11 +57,6 @@ class ExtractorClassic : public Extractor
 		void handleHeight(MapFile* map, ADTV1* adt, MCNK* cell, unsigned int i, unsigned int j);
 		void handleLiquid(MapFile* map, ADTV1* adt, MCNK* cell, unsigned int i, unsigned int j);
 		void handleHoles(MapFile* map, MCNK* cell, unsigned int i, unsigned int j);
-
-		//bool convertWMORoot(WMOV1* wmo, ModelFile* file);
-		//bool convertWMOGroup(WMOV1* root, WMOGroupV1* wmoGroup, ModelFile* file, unsigned int groupIdx, bool preciseVectorData);
-		//bool convertModel(M2V1* model, ModelFile* file);
-		ModelInstance* spawnModel(Model* model, MDDF::DoodadDef* placement);
 		
 	private:
 		const std::string PATTERN_WDT = "World\\Maps\\%s\\%s.wdt";
