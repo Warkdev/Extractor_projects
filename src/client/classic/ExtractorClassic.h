@@ -37,6 +37,7 @@ class ExtractorClassic : public Extractor
 		ExtractorClassic(LayeredConfiguration* config) : Extractor(config)
 		{
 			_mapVersion = MAP_FILE_VERSION_CLASSIC;
+			_mmapVersion = MMAP_FILE_VERSION_CLASSIC;
 			_buildVersion = CLIENT_BUILD_CLASSIC;
 		}
 		virtual void init();
@@ -49,6 +50,10 @@ class ExtractorClassic : public Extractor
 		virtual void readWorldModels(MPQFile* adt);
 		virtual void spawnModelInstances(MPQFile* adt, MCNK* cell, unsigned int x, unsigned int y);
 		virtual void spawnWorldModelInstances(MPQFile* adt, MCNK* cell, unsigned int x, unsigned int y);
+
+		virtual bool isContinent(unsigned int mapId);
+		virtual bool isJunkMap(unsigned int mapId);
+		virtual bool isBattleground(unsigned int mapId);
 
 		bool parseMap(ADTV1* adt, unsigned int mapId, unsigned int x, unsigned int y, unsigned int maxAreaId);
 

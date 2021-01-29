@@ -63,6 +63,50 @@ void ExtractorClassic::createDirectories()
     }
 }
 
+bool ExtractorClassic::isContinent(unsigned int mapId)
+{
+    switch (mapId)
+    {
+        case 0:
+        case 1:
+            return true;
+    }
+
+    return false;
+}
+
+bool ExtractorClassic::isJunkMap(unsigned int mapId)
+{
+    switch (mapId)
+    {
+        case 13:
+        case 25:
+        case 29:
+        case 35:
+        case 37:
+        case 42:
+        case 44:
+        case 169:
+        case 451:
+            return true;
+    }
+
+    return false;
+}
+
+bool ExtractorClassic::isBattleground(unsigned int mapId)
+{
+    switch (mapId)
+    {
+        case 30:    // AV
+        case 489:   // WSG
+        case 529:   // AB
+            return true;
+    }
+
+    return false;
+}
+
 void ExtractorClassic::exportMaps()
 {
     system("pause");
@@ -79,6 +123,11 @@ void ExtractorClassic::exportMaps()
 
 	for (auto it = _maps.begin(); it != _maps.end(); it++)
 	{
+        if ((_skipContinents && isContinent(it->first)) || (_skipJunkMaps && isJunkMap(it->first)) || (_skipBattlegrounds && isBattleground(it->first)))
+        {
+            _logger.information("Skipping WDT file %s.wdt (%u)", it->second, it->first);
+            continue;
+        }
 		_logger.information("Loading WDT file %s.wdt (%u)", it->second, it->first);
 		sprintf(wdtFile, PATTERN_WDT.c_str(), it->second.c_str(), it->second.c_str());
 		WDT* wdt = (WDT*) _mpqManager->getFile(std::string(wdtFile), _version);

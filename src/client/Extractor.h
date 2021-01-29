@@ -46,6 +46,9 @@ static const std::string FLAG_EXTRACT_DBCS = "extractor.extract.dbcs";
 static const std::string FLAG_EXPORT_MAPS = "extractor.export.map";
 static const std::string FLAG_EXPORT_VMAPS = "extractor.generate.vmap";
 static const std::string FLAG_EXPORT_MMAPS = "extractor.generate.mmap";
+static const std::string FLAG_SKIP_CONTINENTS = "extractor.skip.continents";
+static const std::string FLAG_SKIP_JUNK_MAPS = "extractor.skip.junkmaps";
+static const std::string FLAG_SKIP_BATTLEGROUNDS = "extractor.skip.battlegrounds";
 
 // Map files versions.
 static const std::string MAP_FILE_VERSION_CLASSIC = "z1.5";
@@ -58,6 +61,15 @@ static const std::string MAP_FILE_VERSION_LEGION = "l1.5";
 
 // Client build numbers
 static const unsigned int CLIENT_BUILD_CLASSIC = 5875;
+
+// Mmap files versions.
+static const std::string MMAP_FILE_VERSION_CLASSIC = "z1.5";
+static const std::string MMAP_FILE_VERSION_TBC = "s1.5";
+static const std::string MMAP_FILE_VERSION_WOLK = "v1.5";
+static const std::string MMAP_FILE_VERSION_CATA = "c1.5";
+static const std::string MMAP_FILE_VERSION_MOP = "p1.5";
+static const std::string MMAP_FILE_VERSION_WOD = "w1.5";
+static const std::string MMAP_FILE_VERSION_LEGION = "l1.5";
 
 template<> struct BoundsTrait<ModelInstance*>
 {
@@ -76,6 +88,24 @@ class Extractor
 			_exportMaps = config->getBool(FLAG_EXPORT_MAPS);
 			_generateVmaps = config->getBool(FLAG_EXPORT_VMAPS);
 			_generateMmaps = config->getBool(FLAG_EXPORT_MMAPS);
+			try {
+				_skipContinents = config->getBool(FLAG_SKIP_CONTINENTS);
+			}
+			catch (...) {
+				_skipContinents = false;
+			}
+			try {
+				_skipJunkMaps = config->getBool(FLAG_SKIP_JUNK_MAPS);
+			}
+			catch (...) {
+				_skipJunkMaps = true;
+			}
+			try {
+				_skipBattlegrounds = config->getBool(FLAG_SKIP_BATTLEGROUNDS);
+			}
+			catch (...) {
+				_skipBattlegrounds = false;
+			}
 			_outputDBCPath = config->getString(FLAG_EXPORT_PATH) + PATH_DBC;
 			_outputMapPath = config->getString(FLAG_EXPORT_PATH) + PATH_MAPS;
 			_outputVmapPath = config->getString(FLAG_EXPORT_PATH) + PATH_VMAPS;
@@ -127,6 +157,9 @@ class Extractor
 		// Tools function
 		std::string getUniformName(std::string filename);
 		unsigned int packTileId(unsigned int x, unsigned int y);
+		virtual bool isContinent(unsigned int mapId) = 0;
+		virtual bool isJunkMap(unsigned int mapId) = 0;
+		virtual bool isBattleground(unsigned int mapId) = 0;
 
 		// Map Functions
 		void packAreaData(MapFile* map);
@@ -150,6 +183,9 @@ class Extractor
 		bool _exportMaps;
 		bool _generateVmaps;
 		bool _generateMmaps;
+		bool _skipContinents;
+		bool _skipJunkMaps;
+		bool _skipBattlegrounds;
 
 		// Client Path.
 		Path _clientDataPath;
@@ -214,6 +250,9 @@ class Extractor
 		std::vector<std::string> _worldModelsList; // Hold the list of world models for the current ADT.
 		std::map<unsigned int, ModelInstance*> _modelInstances; // Hold the list of spawned models for the current ADT.
 		std::map<unsigned int, ModelInstance*> _modelTileInstances; // Hold the list of spawned models for the current Tile.
+
+		// MMaps file info;
+		std::string _mmapVersion;
 };
 
 #endif // !EXTRACTOR_H

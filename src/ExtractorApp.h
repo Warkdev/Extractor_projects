@@ -79,6 +79,12 @@ protected:
 
 	void handleOutputPath(const std::string& name, const std::string& value);
 
+	void handleSkipContinents(const std::string& name, const std::string& value);
+
+	void handleSkipJunkMaps(const std::string& name, const std::string& value);
+
+	void handleSkipBattlegrounds(const std::string& name, const std::string& value);
+
 	void displayHelp();
 
 	int main(const ArgVec& args);

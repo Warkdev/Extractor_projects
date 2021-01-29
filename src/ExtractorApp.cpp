@@ -116,6 +116,30 @@ void ExtractorApp::defineOptions(OptionSet& options)
 			.repeatable(false)
 			.argument("path")
 			.callback(OptionCallback<ExtractorApp>(this, &ExtractorApp::handleOutputPath)));
+
+	options.addOption(
+		Option("skip-continents", "sc", "Skip continents (disabled by default)")
+		.required(false)
+		.repeatable(false)
+		.argument("<0|1>")
+		.validator(new IntValidator(0, 1))
+		.callback(OptionCallback<ExtractorApp>(this, &ExtractorApp::handleSkipContinents)));
+
+	options.addOption(
+		Option("skip-junk-maps", "sj", "Skip junk maps (enabled by default)")
+		.required(false)
+		.repeatable(false)
+		.argument("<0|1>")
+		.validator(new IntValidator(0, 1))
+		.callback(OptionCallback<ExtractorApp>(this, &ExtractorApp::handleSkipJunkMaps)));
+
+	options.addOption(
+		Option("skip-battlegrounds", "sb", "Skip battlegrounds (disabled by default)")
+		.required(false)
+		.repeatable(false)
+		.argument("<0|1>")
+		.validator(new IntValidator(0, 1))
+		.callback(OptionCallback<ExtractorApp>(this, &ExtractorApp::handleSkipBattlegrounds)));
 }
 
 void ExtractorApp::handleHelp(const std::string& name, const std::string& value)
@@ -177,6 +201,42 @@ void ExtractorApp::handleGenerateMmap(const std::string& name, const std::string
 		_generateMmaps = false;
 	}
 	config().setBool(FLAG_EXPORT_MMAPS, _generateMmaps);
+}
+
+void ExtractorApp::handleSkipContinents(const std::string& name, const std::string& value)
+{
+	if (!std::stoi(value))
+	{
+		config().setBool(FLAG_SKIP_CONTINENTS, false);
+	}
+	else
+	{
+		config().setBool(FLAG_SKIP_CONTINENTS, true);
+	}
+}
+
+void ExtractorApp::handleSkipJunkMaps(const std::string& name, const std::string& value)
+{
+	if (!std::stoi(value))
+	{
+		config().setBool(FLAG_SKIP_JUNK_MAPS, false);
+	}
+	else
+	{
+		config().setBool(FLAG_SKIP_JUNK_MAPS, true);
+	}
+}
+
+void ExtractorApp::handleSkipBattlegrounds(const std::string& name, const std::string& value)
+{
+	if (!std::stoi(value))
+	{
+		config().setBool(FLAG_SKIP_BATTLEGROUNDS, false);
+	}
+	else
+	{
+		config().setBool(FLAG_SKIP_BATTLEGROUNDS, true);
+	}
 }
 
 void ExtractorApp::displayHelp()
