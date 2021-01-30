@@ -82,7 +82,8 @@ bool VMTreeFile::save(std::string path)
             writer << _globalWMO.model->boundingBox.low().x << _globalWMO.model->boundingBox.low().y << _globalWMO.model->boundingBox.low().z;
             writer << _globalWMO.model->boundingBox.high().x << _globalWMO.model->boundingBox.high().y << _globalWMO.model->boundingBox.high().z;
         }
-        writer << _globalWMO.model->model->name;
+        writer << (unsigned int)_globalWMO.model->model->name.length();
+        writer.writeRaw(_globalWMO.model->model->name.c_str(), _globalWMO.model->model->name.length());
     }
 
     stream.close();
