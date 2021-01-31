@@ -57,6 +57,11 @@ bool M2V1::parse()
 	return supported;
 }
 
+const AABox M2V1::getCollisionBox()
+{
+	return _header->collisionBox;
+}
+
 unsigned int const M2V1::getNCollisionVertices()
 {
 	return _header->collisionVertices.size;

@@ -248,7 +248,7 @@ class Extractor
 		ModelInstance* _worldModel; // Hold a global world model for the current WDT.
 		std::vector<std::string> _modelsList; // Hold the list of models for the current ADT.
 		std::vector<std::string> _worldModelsList; // Hold the list of world models for the current ADT.
-		std::map<unsigned int, ModelInstance*> _modelInstances; // Hold the list of spawned models for the current ADT.
+		std::map<unsigned int, ModelInstance*> _modelInstances; // Hold the list of spawned models for the current WDT.
 		std::map<unsigned int, ModelInstance*> _modelTileInstances; // Hold the list of spawned models for the current Tile.
 
 		// MMaps file info;

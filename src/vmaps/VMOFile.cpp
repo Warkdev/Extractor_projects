@@ -91,7 +91,7 @@ bool VMOFile::save(std::string path)
 
             for (int j = 0; j < gmod->nTriangles; j++)
             {
-                writer << gmod->mesh[j].idx0 << gmod->mesh[j].idx2 << gmod->mesh[j].idx1;
+                writer << gmod->mesh[j].idx0 << gmod->mesh[j].idx1 << gmod->mesh[j].idx2;
             }
 
             // BIH

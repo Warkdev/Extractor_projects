@@ -50,7 +50,7 @@ Model::Model(std::string name, M2V1* m2)
 	groups[0].nIndices = m2->getNCollisionTriangles();
     groups[0].nTriangles = groups[0].nIndices / 3;
 	groups[0].liquid = NULL;
-	groups[0].boundingBox = AABox::zero();
+    groups[0].boundingBox = AABox::zero();
 	groups[0].groupFlags = 0;
 	groups[0].groupWMOID = 0;
 
@@ -63,7 +63,7 @@ Model::Model(std::string name, M2V1* m2)
     const unsigned short* indices = m2->getCollisionTriangles();
     for (int i = 0; i < groups[0].nIndices; i += 3)
     {
-        groups[0].mesh.push_back(MeshTriangle(indices[i], indices[i+1], indices[i+2]));
+        groups[0].mesh.push_back(MeshTriangle(indices[i], indices[i+2], indices[i+1])); // Switch Z and Y.
     }
 
     TriBoundFunc bFunc(groups[0].vertices);
@@ -247,9 +247,7 @@ ModelInstance::ModelInstance(Model* model, unsigned int uniqueId, unsigned short
 	position(Vector3(position.z, position.x, position.y)), 
 	rotation(rotation), 
 	scale(scale), 
-	boundingBox(AABox
-		(Vector3(boundingBox.low().z, boundingBox.low().x, boundingBox.low().y), 
-			Vector3(boundingBox.high().z, boundingBox.high().x, boundingBox.high().y)))
+	boundingBox(boundingBox)
 {
 	Matrix3 matrix;
 	if (this->model->flags & MOD_M2) 
@@ -257,27 +255,32 @@ ModelInstance::ModelInstance(Model* model, unsigned int uniqueId, unsigned short
 		this->scale /= 1024.0f;
 		// Calculate Transformed bound.
 		matrix = Matrix3::fromEulerAnglesZYX(G3D::pi() * this->rotation.y / 180.0f, G3D::pi() * this->rotation.x / 180.f, G3D::pi() * this->rotation.z / 180.0f);
-		AABox zero = AABox::zero();
 		for (int i = 0; i < this->model->groups[0].nVertices; i++)
 		{
 			Vector3 v = matrix * (this->model->groups[0].vertices[i] * this->scale);
 			if (i == 0)
 			{
-				this->boundingBox.set(v, v);
+                this->boundingBox.set(v, v);
 			}
 			else 
 			{
-				this->boundingBox.merge(v);
+                this->boundingBox.merge(v);
 			}	
 		}
-		this->boundingBox = this->boundingBox + this->position;
+        this->boundingBox = this->boundingBox + this->position;
 		this->model->flags |= MOD_HAS_BOUND;
 	}
 	else if (this->model->flags & MOD_WORLDSPAWN) // Worldspawn (WDT content) has different origin than WMO contained in ADT.
 	{
 		// WMO has wrong origin
+        this->boundingBox = AABox(Vector3(boundingBox.low().z, boundingBox.low().x, boundingBox.low().y), Vector3(boundingBox.high().z, boundingBox.high().x, boundingBox.high().y));
 		Vector3 v = Vector3(MAP_SIZE * 32, MAP_SIZE * 32, 0.f);
-		this->position = position + v;
+		this->position += v;
 		this->boundingBox = this->boundingBox + v;
 	}
+    else // WMO within ADT
+    {
+        // The bounding box is not aligned.
+        this->boundingBox = AABox(Vector3(boundingBox.low().z, boundingBox.low().x, boundingBox.low().y), Vector3(boundingBox.high().z, boundingBox.high().x, boundingBox.high().y));
+    }
 };

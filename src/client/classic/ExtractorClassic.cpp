@@ -208,7 +208,8 @@ void ExtractorClassic::exportMaps()
 
 		delete wdt;
 	}
-    _logger.debug("Debug line");
+    _logger.information("");
+    _logger.information("Asset extraction complete! Good game :-)");
 }
 
 bool ExtractorClassic::parseMap(ADTV1* adt, unsigned int mapId, unsigned int x, unsigned int y, unsigned int maxAreaId)
@@ -600,7 +601,7 @@ void ExtractorClassic::spawnModelInstances(MPQFile* adt, MCNK* cell, unsigned in
             {
                 // Model found
                 m2 = it->second;
-                ModelInstance* instance = new ModelInstance(m2, placement->uniqueId, 0, _modelInstances.size(), x, y, placement->position, placement->orientation, placement->scale, AABox::zero());
+                ModelInstance* instance = new ModelInstance(m2, placement->uniqueId, 0, _modelInstances.size(), x, y, placement->position, placement->orientation, placement->scale, m2->groups[0].boundingBox);
                 _modelInstances[instance->id] = instance;
                 _modelTileInstances[instance->id] = instance;
             }

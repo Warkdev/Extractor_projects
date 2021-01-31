@@ -334,6 +334,7 @@ public:
 	unsigned short* getIndices(unsigned int view);
 
 	// Collision system.
+	const AABox getCollisionBox();
 	unsigned int const getNCollisionVertices();
 	const Vector3* getCollisionVertices();
 	const unsigned int getNCollisionTriangles();
