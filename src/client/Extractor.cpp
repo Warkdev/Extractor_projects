@@ -416,20 +416,35 @@ unsigned int Extractor::packTileId(unsigned int x, unsigned int y)
     return (x << 16) + y;
 }
 
+void Extractor::unpackTileId(unsigned int id, unsigned int& x, unsigned int& y)
+{
+    x = id >> 16;
+    y = id & 0xFF;
+}
+
 void Extractor::saveVMap(unsigned int mapId)
 {
     _logger.information("VMAP - Creating map tree %u", mapId);
     std::vector<ModelInstance*> models;
     // First, we make a vector of all unique model instances for this map.
+    int nodeIdx = 0;
     for (auto itModels : _modelInstances)
     {
+        itModels.second->nodeIdx = nodeIdx;
         models.push_back(itModels.second);
+        nodeIdx++;
     }
 
     BIH tree;
     tree.build(models, BoundsTrait<ModelInstance*>::getBounds);
     VMTreeFile vmTreeFile(mapId, &tree, _worldModel);
     vmTreeFile.save(_outputVmapPath.toString());
+
+    // We save now each vmap tile.
+    for (auto tiles : _modelTileInstances)
+    {
+        saveVMapTiles(mapId, tiles.first);
+    }    
 
     models.clear();
     for (auto p : _modelInstances)
@@ -447,13 +462,18 @@ void Extractor::saveVMap(unsigned int mapId)
         delete p.second;
     }
     _worldModels.clear();
+
+    _modelTileInstances.clear();
 }
 
-void Extractor::saveVMapTile(unsigned int mapId, unsigned int x, unsigned int y)
+void Extractor::saveVMapTiles(unsigned int mapId, unsigned int tileId)
 {
+    unsigned int x, y;
+    unpackTileId(tileId, x, y);
     _logger.debug("VMAP - Creating map %u tile x: %u - y: %u", mapId, x, y);
     std::vector<ModelInstance*> models;
-    for (auto itModels : _modelTileInstances)
+    
+    for (auto itModels : _modelTileInstances[tileId])
     {
         models.push_back(itModels.second);
     }
@@ -461,8 +481,6 @@ void Extractor::saveVMapTile(unsigned int mapId, unsigned int x, unsigned int y)
     VMTileFile vmTileFile(mapId, x, y, models);
     vmTileFile.save(_outputVmapPath.toString());
     models.clear();
-    // We just empty without cleaning the pointers because it's used by the _modelInstances vector as well..
-    _modelTileInstances.clear();
 }
 
 void Extractor::saveVMapModels(Model* model)

@@ -189,11 +189,6 @@ void ExtractorClassic::exportMaps()
                         continue;
                     }
 
-                    if (_generateVmaps && _modelTileInstances.size() > 0)
-                    {
-                        saveVMapTile(it->first, x , y);
-                    }
-
 					delete adt;
 				}
                 // We use printf here because there's no known way to do it with Poco.
@@ -205,7 +200,6 @@ void ExtractorClassic::exportMaps()
         {
             saveVMap(it->first);
         }
-
 		delete wdt;
 	}
     _logger.information("");
@@ -478,7 +472,7 @@ void ExtractorClassic::spawnVMap(unsigned int mapId, MPQFile* wdt)
 
         MODF::MapObjDef* placement = &((WDT*)wdt)->getGlobalWMOPlacement()->placements[0];
 
-        ModelInstance* instance = new ModelInstance(_worldModels[wmoName], placement->uniqueId, placement->flags, 0, 0, 0, placement->position, placement->orientation, 1.0f, placement->boundingBox);
+        ModelInstance* instance = new ModelInstance(_worldModels[wmoName], placement->uniqueId, placement->flags, 0, 0, placement->position, placement->orientation, 1.0f, placement->boundingBox);
         _worldModel = instance;
         saveVMapModels(_worldModels[wmoName]);
 
@@ -601,9 +595,11 @@ void ExtractorClassic::spawnModelInstances(MPQFile* adt, MCNK* cell, unsigned in
             {
                 // Model found
                 m2 = it->second;
-                ModelInstance* instance = new ModelInstance(m2, placement->uniqueId, 0, _modelInstances.size(), x, y, placement->position, placement->orientation, placement->scale, m2->groups[0].boundingBox);
-                _modelInstances[instance->id] = instance;
-                _modelTileInstances[instance->id] = instance;
+                if(!_modelInstances.count(placement->uniqueId)) {
+                    ModelInstance* instance = new ModelInstance(m2, placement->uniqueId, 0, x, y, placement->position, placement->orientation, placement->scale, m2->groups[0].boundingBox);
+                    _modelInstances[instance->id] = instance;
+                }
+                _modelTileInstances[packTileId(x, y)][placement->uniqueId] = _modelInstances[placement->uniqueId];
             }
             else {
                 // Can be a model without collision vertices.
@@ -630,9 +626,11 @@ void ExtractorClassic::spawnWorldModelInstances(MPQFile* adt, MCNK* cell, unsign
             {
                 // Model found
                 wmo = it->second;
-                ModelInstance* instance = new ModelInstance(wmo, placement->uniqueId, placement->flags, _modelInstances.size(), x, y, placement->position, placement->orientation, 1.0f, placement->boundingBox);
-                _modelInstances[instance->id] = instance;
-                _modelTileInstances[instance->id] = instance;
+                if (!_modelInstances.count(placement->uniqueId)) {
+                    ModelInstance* instance = new ModelInstance(wmo, placement->uniqueId, placement->flags, x, y, placement->position, placement->orientation, 1.0f, placement->boundingBox);
+                    _modelInstances[instance->id] = instance;
+                }
+                _modelTileInstances[packTileId(x, y)][placement->uniqueId] = _modelInstances[placement->uniqueId];
             }
             else {
                 _logger.warning("WMO not found %s", _worldModelsList[placement->mwidEntry]);

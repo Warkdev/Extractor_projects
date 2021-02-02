@@ -151,7 +151,7 @@ class ModelInstance
 		float scale;
 		AABox boundingBox;
 
-		ModelInstance(Model* model, unsigned int uniqueId, unsigned short adtId, unsigned int nodeIdx, unsigned int tileX, unsigned int tileY, Vector3 position, Vector3 rotation, float scale, AABox boundingBox);
+		ModelInstance(Model* model, unsigned int uniqueId, unsigned short adtId, unsigned int tileX, unsigned int tileY, Vector3 position, Vector3 rotation, float scale, AABox boundingBox);
 		~ModelInstance() {};
 
 		bool operator==(const ModelInstance& other) const { return id == other.id; }

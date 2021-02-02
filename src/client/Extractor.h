@@ -139,7 +139,10 @@ class Extractor
 			}
 			for (auto it = _modelTileInstances.begin(); it != _modelTileInstances.end(); it++)
 			{
-				delete it->second;
+				for (auto instance : it->second)
+				{
+					delete instance.second;
+				}
 			}
 		}
 
@@ -157,6 +160,7 @@ class Extractor
 		// Tools function
 		std::string getUniformName(std::string filename);
 		unsigned int packTileId(unsigned int x, unsigned int y);
+		void unpackTileId(unsigned int id, unsigned int& x, unsigned int& y);
 		virtual bool isContinent(unsigned int mapId) = 0;
 		virtual bool isJunkMap(unsigned int mapId) = 0;
 		virtual bool isBattleground(unsigned int mapId) = 0;
@@ -175,7 +179,7 @@ class Extractor
 		virtual void spawnModelInstances(MPQFile* adt, MCNK* cell, unsigned int x, unsigned int y) = 0;
 		virtual void spawnWorldModelInstances(MPQFile* adt, MCNK* cell, unsigned int x, unsigned int y) = 0;
 		virtual void saveVMap(unsigned int mapId);
-		virtual void saveVMapTile(unsigned int mapId, unsigned int x, unsigned int y);
+		virtual void saveVMapTiles(unsigned int mapId, unsigned int tileId);
 		virtual void saveVMapModels(Model* model);
 
 		// Extractor flags.
@@ -249,7 +253,7 @@ class Extractor
 		std::vector<std::string> _modelsList; // Hold the list of models for the current ADT.
 		std::vector<std::string> _worldModelsList; // Hold the list of world models for the current ADT.
 		std::map<unsigned int, ModelInstance*> _modelInstances; // Hold the list of spawned models for the current WDT.
-		std::map<unsigned int, ModelInstance*> _modelTileInstances; // Hold the list of spawned models for the current Tile.
+		std::map<unsigned int, std::map<unsigned int, ModelInstance*>> _modelTileInstances; // Hold the list of spawned models for the current Tile.
 
 		// MMaps file info;
 		std::string _mmapVersion;

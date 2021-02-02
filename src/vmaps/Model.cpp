@@ -240,9 +240,9 @@ Model::Model(std::string name, WMOV1* wmo, WMOGroupV1** wmoGroups, bool preciseV
 }
 
 // Constructor is switching positions as the WoW Map system uses Y-up as origin.
-ModelInstance::ModelInstance(Model* model, unsigned int uniqueId, unsigned short adtId, unsigned int nodeIdx, unsigned int tileX, unsigned int tileY, Vector3 position, Vector3 rotation, float scale, AABox boundingBox) :
+ModelInstance::ModelInstance(Model* model, unsigned int uniqueId, unsigned short adtId, unsigned int tileX, unsigned int tileY, Vector3 position, Vector3 rotation, float scale, AABox boundingBox) :
 	model(model), 
-	adtId(adtId), nodeIdx(nodeIdx), tileX(tileX), tileY(tileY), 
+	adtId(adtId), tileX(tileX), tileY(tileY), 
 	id(uniqueId), 
 	position(Vector3(position.z, position.x, position.y)), 
 	rotation(rotation), 
