@@ -47,6 +47,13 @@ void ExtractorApp::initialize(Application& self)
 	int loaded = loadConfiguration(); // load default configuration files, if present
 	Application::initialize(self);
 	// add your own initialization code here
+	config().setBool(FLAG_EXPORT_MAPS, _extractMaps);
+	config().setBool(FLAG_EXTRACT_DBCS, _extractDbcs);
+	config().setBool(FLAG_EXPORT_VMAPS, _generateVmaps);
+	config().setBool(FLAG_EXPORT_MMAPS, _generateMmaps);
+	config().setString(FLAG_CLIENT_PATH, _clientPath);
+	config().setString(FLAG_EXPORT_PATH, _outputPath);
+
 }
 
 void ExtractorApp::uninitialize()
